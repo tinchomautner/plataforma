@@ -437,49 +437,30 @@ function EmptyState({ icon = 'cube', title, hint, action }) {
    LATAM grande + CONSULTUS con tracking expandido abajo + (opcional) divisor
    vertical + tagline "El valor de ser independiente". Color navy oficial. */
 function LatamLogo({ size = 'md', tagline = false }) {
-  const NAVY = '#1a2240';
-  const ACCENT = '#0066CC';
+  // Conservado para compatibilidad, ahora muestra el logo MaximUs.
+  return <MaximusLogo size={size} tagline={tagline} />;
+}
+
+/* Logo MaximUs — imagen PNG oficial (extraída del docx de firmas). */
+function MaximusLogo({ size = 'md', tagline = false }) {
   const sizes = {
-    sm: { latam: 22, consult: 10,  gap: 5, height: 40 },
-    md: { latam: 30, consult: 13,  gap: 6, height: 52 },
-    lg: { latam: 42, consult: 18,  gap: 9, height: 78 },
-    xl: { latam: 54, consult: 23,  gap: 11,height: 98 },
+    sm: { h: 30, tag: 9  },
+    md: { h: 44, tag: 10 },
+    lg: { h: 64, tag: 12 },
+    xl: { h: 84, tag: 14 },
   };
   const s = sizes[size] || sizes.md;
-  const latamW = s.latam * 3.4;
-  const tagW = size === 'sm' ? 0 : tagline ? (size === 'lg' ? 280 : 220) : 0;
-  const dividerX = latamW + 18;
-  const totalW = tagline ? dividerX + 20 + tagW : latamW;
-  const fontStack = "'Montserrat', 'Inter', system-ui, sans-serif";
-
   return (
-    <svg
-      viewBox={`0 0 ${totalW} ${s.height}`}
-      width={totalW} height={s.height}
-      style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
-      role="img" aria-label="LATAM ConsultUs · El valor de ser independiente">
-      {/* LATAM en navy */}
-      <text x="0" y={s.latam} fill={NAVY} fontFamily={fontStack} fontWeight="800" fontSize={s.latam}
-            style={{ letterSpacing: '-0.01em' }} dominantBaseline="hanging">
-        LATAM
-      </text>
-      {/* CONSULTUS en azul corporativo, con tracking */}
-      <text x="0" y={s.latam + s.gap + 2} fill={ACCENT} fontFamily={fontStack} fontWeight="600" fontSize={s.consult}
-            style={{ letterSpacing: s.latam * 0.18 + 'px' }} dominantBaseline="hanging">
-        CONSULTUS
-      </text>
-      {tagline && size !== 'sm' && <>
-        <line x1={dividerX} x2={dividerX} y1="3" y2={s.height - 3} stroke={NAVY} strokeWidth="1.2" opacity="0.40" />
-        <text x={dividerX + 18} y={s.latam * 0.55} fill={NAVY} fontFamily={fontStack} fontWeight="400" fontSize={s.latam * 0.42}
-              dominantBaseline="hanging">
-          El valor de ser
-        </text>
-        <text x={dividerX + 18} y={s.latam * 0.55 + s.latam * 0.55} fill={NAVY} fontFamily={fontStack} fontWeight="700" fontSize={s.latam * 0.42}
-              dominantBaseline="hanging">
-          independiente
-        </text>
-      </>}
-    </svg>
+    <div className="inline-flex items-center gap-3">
+      <img src="./assets/maximus-logo.png" alt="MaximUs"
+           style={{ height: s.h, width: 'auto', display: 'block' }} />
+      {tagline && size !== 'sm' && (
+        <div className="flex flex-col leading-tight pl-3 border-l border-line">
+          <span className="text-ink" style={{ fontSize: s.tag * 1.2, lineHeight: 1.1 }}>El valor de ser</span>
+          <span className="text-ink font-bold" style={{ fontSize: s.tag * 1.2, lineHeight: 1.1 }}>independiente</span>
+        </div>
+      )}
+    </div>
   );
 }
 

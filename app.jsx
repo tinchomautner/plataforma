@@ -572,12 +572,12 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced, mobileOpen, 
 function ConsultoraKanban() {
   const { state, dispatch, me } = useApp();
   const team = state.team.filter(u => u.units.includes('consultora') && !u.nonAssignable);
+  // Lista única de clientes desde MaximUs (Uso Clientes), no de pendings — para mantener canónico
   const clientesUnicos = useMemo(() => {
     const set = new Set();
-    state.consultora.cards.forEach(c => c.cliente && set.add(c.cliente));
     state.maximus.clients.forEach(c => c.cliente && set.add(c.cliente));
     return Array.from(set).sort();
-  }, [state.consultora.cards, state.maximus.clients]);
+  }, [state.maximus.clients]);
   const cards = state.consultora.cards;
   const [editing, setEditing] = useState(null);   // card | null
   const [creating, setCreating] = useState(false);
@@ -937,7 +937,7 @@ function ConsultoraMetrics() {
   const [customFrom, setCustomFrom] = useState(() => new Date(now() - 30*DAY).toISOString().slice(0,10));
   const [customTo,   setCustomTo]   = useState(() => new Date(now()).toISOString().slice(0,10));
   const cards = state.consultora.cards;
-  const team = state.team.filter(u => u.units.includes('consultora'));
+  const team = state.team.filter(u => u.units.includes('consultora') && !u.nonAssignable);
 
   const range = useMemo(() => {
     if (period === 'custom') {
@@ -1017,15 +1017,30 @@ function ConsultoraMetrics() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Panel title="Tarjetas completadas por día">
+          <Panel title={bucketDays === 1 ? 'Tarjetas completadas por día' : bucketDays === 7 ? 'Tarjetas completadas por semana' : 'Tarjetas completadas por mes'}>
             {series.every(s => s.n === 0) ? <EmptyState title="Sin completas en el período" hint="Mové tarjetas a Listo para ver datos acá." /> : (
-              <div className="flex items-end gap-1 h-48 px-1">
-                {series.map((s, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full bg-gold/70 rounded-t-md" style={{ height: `${(s.n/maxN)*100}%`, minHeight: s.n>0 ? 4 : 0 }} title={`${s.label}: ${s.n}`} />
-                    <div className="text-[9px] text-muted -rotate-45 origin-top-left whitespace-nowrap h-4">{s.label}</div>
-                  </div>
-                ))}
+              <div>
+                <div className="flex items-end gap-1.5 h-56 px-1 border-b border-line pb-1">
+                  {series.map((s, i) => (
+                    <div key={i} className="flex-1 flex flex-col justify-end items-center min-w-0 group relative">
+                      {s.n > 0 && <div className="absolute -top-5 text-[10px] tabular-nums text-ink-2 opacity-0 group-hover:opacity-100 transition pointer-events-none">{s.n}</div>}
+                      <div className="w-full rounded-t-md bg-gold transition group-hover:bg-gold-2"
+                           style={{ height: `${Math.max(s.n/maxN*100, s.n > 0 ? 8 : 0)}%` }}
+                           title={`${s.label}: ${s.n}`} />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-1.5 px-1 mt-1.5">
+                  {series.map((s, i) => {
+                    const show = buckets <= 12 || i % Math.ceil(buckets / 8) === 0;
+                    return (
+                      <div key={i} className="flex-1 text-[9px] text-muted text-center tabular-nums truncate">
+                        {show ? s.label : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="text-[10px] text-muted text-center mt-2">Máximo: {maxN} · Total: {series.reduce((a,b) => a + b.n, 0)}</div>
               </div>
             )}
           </Panel>

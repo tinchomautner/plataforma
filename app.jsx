@@ -245,19 +245,16 @@ const seedConsultora = () => {
 };
 
 /* Regla auto-archive:
-   - Cards en estado 'done': se ocultan a los 2 días de completadas (rotan rápido).
-   - Otras cards: se ocultan a los 7 días de creadas.
-   No se elimina ni cambia estado: solo se oculta del Kanban. Métricas siguen viendo todo. */
-const ARCHIVE_DAYS_ACTIVE = 7;
-const ARCHIVE_DAYS_DONE   = 2;
+   - Cards 'done' viejas (+2 días desde completedAt) se ocultan automáticamente.
+   - Cards activas (Backlog / In progress / Review) NUNCA se archivan automáticamente —
+     una card hace mucho que sigue abierta es MÁS importante, no menos.
+   No se elimina ni cambia estado: solo se oculta del Kanban. Métricas ven todo. */
+const ARCHIVE_DAYS_DONE = 2;
 const isArchived = (card) => {
-  if (card.estado === 'done') {
-    const ref = card.completedAt || card.createdAt;
-    if (!ref) return false;
-    return (now() - ref) > ARCHIVE_DAYS_DONE * DAY;
-  }
-  if (!card.createdAt) return false;
-  return (now() - card.createdAt) > ARCHIVE_DAYS_ACTIVE * DAY;
+  if (card.estado !== 'done') return false;
+  const ref = card.completedAt || card.createdAt;
+  if (!ref) return false;
+  return (now() - ref) > ARCHIVE_DAYS_DONE * DAY;
 };
 
 const seedClients = () => {
@@ -632,7 +629,7 @@ function ConsultoraKanban() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Pedidos de clientes"
-        subtitle={`Activos hasta ${ARCHIVE_DAYS_ACTIVE} días, listos hasta ${ARCHIVE_DAYS_DONE} días. ${archivedCount > 0 ? `${archivedCount} en histórico.` : ''}`}
+        subtitle={`Tablero compartido del equipo de Consultora. Las cards en Listo se ocultan a los ${ARCHIVE_DAYS_DONE} días. ${archivedCount > 0 ? `${archivedCount} en histórico.` : ''}`}
         actions={<>
           <div className="relative">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />

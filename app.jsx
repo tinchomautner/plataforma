@@ -477,7 +477,7 @@ function Login({ team, onLogin }) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       <div className="hidden lg:flex flex-col justify-between p-12 bg-bg-2 border-r border-line">
-        <LatamLogo size="lg" tagline />
+        <LatamLogo size="lg" />
         <div>
           <h2 className="font-display text-2xl font-semibold text-ink mb-3 leading-tight">
             Plataforma interna del equipo
@@ -495,7 +495,7 @@ function Login({ team, onLogin }) {
       </div>
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden mb-6"><LatamLogo size="md" tagline /></div>
+          <div className="lg:hidden mb-6"><LatamLogo size="md" /></div>
           <h1 className="font-display text-xl font-semibold mb-1 text-ink">Iniciar sesión</h1>
           <p className="text-sm text-muted mb-6">Ingresá con tu usuario y contraseña.</p>
           <form onSubmit={submit} className="space-y-3">

@@ -1,19 +1,23 @@
 # Credenciales del equipo
 
-Para uso interno. Compartilas por canal seguro (Slack DM / 1Password / WhatsApp). Cada uno puede cambiar la suya después.
+Compartir por canal seguro (Slack DM / WhatsApp / 1Password). Cada uno puede cambiar su contraseña después.
 
-| Usuario          | Permisos    | Username   | Password       |
-|------------------|-------------|------------|----------------|
-| Martín Mautner   | **Admin**   | `mautner`  | `Martin2026`   |
-| Santiago de Haedo| **Admin**   | `dehaedo`  | `Santiago2026` |
-| Matías Acevedo   | Consultora  | `mati`     | `Mati2026`     |
-| Pablo Machado    | Consultora  | `pablo`    | `Pablo2026`    |
-| Deborah Amatti   | Consultora  | `debo`     | `Debo2026`     |
-| Emeterio Morales | Consultora  | `emeterio` | `Emeterio2026` |
-| Martín Nogués    | Consultora  | `nogues`   | `Nogues2026`   |
-| Verónica Rey     | Consultora  | `vero`     | `Vero2026`     |
-| Federico Hazan   | MaximUs     | `hazan`    | `Federico2026` |
-| Max Araujo       | MaximUs     | `araujo`   | `Max2026`      |
+| Usuario           | Rol oficial                                | Permisos    | Username    | Password       |
+|-------------------|--------------------------------------------|-------------|-------------|----------------|
+| Santiago de Haedo | Director general                           | **Admin**   | `dehaedo`   | `Santiago2026` |
+| Verónica Rey      | Directora ejecutiva                        | Consultora* | `vero`      | `Vero2026`     |
+| Martín Mautner    | Director de producto                       | **Admin**   | `mautner`   | `Martin2026`   |
+| Deborah Amatti    | Directora de estrategia                    | Consultora  | `debo`      | `Debo2026`     |
+| Pablo Machado     | Director analista de crédito               | Consultora  | `pablo`     | `Pablo2026`    |
+| Emeterio Morales  | Director analista de portafolios           | Consultora  | `emeterio`  | `Emeterio2026` |
+| Martín Nogués     | Director analista de renta variable        | Consultora  | `nogues`    | `Nogues2026`   |
+| Matías Acevedo    | Analista de portafolios                    | Consultora  | `mati`      | `Mati2026`     |
+| Federico Hazan    | Analista de datos                          | MaximUs     | `hazan`     | `Federico2026` |
+| Máximo Araújo     | Analista                                   | MaximUs     | `araujo`    | `Max2026`      |
+| Felipe Donagaray  | Comunicación y marketing                   | Consultora* | `donagaray` | `Felipe2026`   |
+| Paulina Lorenzo   | Comunicación y marketing                   | Consultora* | `paulina`   | `Paulina2026`  |
+
+\* Verónica, Felipe y Paulina pueden entrar y ver pero **no aparecen como analistas asignables** en los dropdowns (no son tomadores de pedidos).
 
 ## Permisos por sección
 
@@ -26,16 +30,6 @@ Para uso interno. Compartilas por canal seguro (Slack DM / 1Password / WhatsApp)
 | Pipeline ventas (Prospects)|   ✓   |     —      |    ✓    |
 | Tareas equipo MaximUs      |   ✓   |     —      |    ✓    |
 
-**Admin = Martín Mautner + Santiago de Haedo** (control total).
-**MaximUs = Federico Hazan + Max Araujo** (solo cosas de MaximUs).
-**Consultora = los otros 6 analistas** (solo Consultora, sin métricas).
-
-## Seguridad
-
-Estas passwords son barrera básica para uso interno, no auth real. Para auth seria (magic link por email, sin passwords compartidos):
-
-1. Activar **Supabase Auth** en el dashboard de Supabase.
-2. Invitar a cada email del equipo.
-3. Cambiar el `Login` para usar `supabase.auth.signInWithOtp({ email })`.
-
-Lo dejamos para el siguiente sprint.
+- **Admin** = Santiago de Haedo + Martín Mautner (control total, incluido métricas).
+- **MaximUs** = Federico Hazan + Máximo Araújo (solo cosas de MaximUs).
+- **Consultora** = el resto (solo Consultora, sin métricas).

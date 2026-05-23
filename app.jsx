@@ -180,16 +180,18 @@ function Icon({ name, size = 18, className = '', stroke = 'currentColor' }) {
    La password es solo barrera de entrada en uso interno — los analistas pueden
    cambiarla en su perfil. Para auth real usamos Supabase Auth (magic link). */
 const TEAM_SEED = [
-  { id: 'u-mm', username: 'mautner',  password: 'Martin2026',    perms: 'admin',      nonAssignable: true,  name: 'Martín Mautner',   initials: 'MM', role: 'Admin',              units: ['consultora','maximus'], color: '#0066CC' },
-  { id: 'u-sh', username: 'dehaedo',  password: 'Santiago2026',  perms: 'admin',      nonAssignable: true,  name: 'Santiago de Haedo',initials: 'SH', role: 'Admin',              units: ['consultora','maximus'], color: '#004C99' },
-  { id: 'u-ma', username: 'mati',     password: 'Mati2026',      perms: 'consultora',                       name: 'Matías Acevedo',   initials: 'MA', role: 'Analista Consultora',units: ['consultora'],           color: '#3b82f6' },
-  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora',                       name: 'Pablo Machado',    initials: 'PM', role: 'Analista Consultora',units: ['consultora'],           color: '#14b8a6' },
-  { id: 'u-da', username: 'debo',     password: 'Debo2026',      perms: 'consultora',                       name: 'Deborah Amatti',   initials: 'DA', role: 'Analista Consultora',units: ['consultora'],           color: '#ec4899' },
-  { id: 'u-em', username: 'emeterio', password: 'Emeterio2026',  perms: 'consultora',                       name: 'Emeterio Morales', initials: 'EM', role: 'Analista Consultora',units: ['consultora'],           color: '#a855f7' },
-  { id: 'u-mn', username: 'nogues',   password: 'Nogues2026',    perms: 'consultora',                       name: 'Martín Nogués',    initials: 'MN', role: 'Analista Consultora',units: ['consultora'],           color: '#f97316' },
-  { id: 'u-vr', username: 'vero',     password: 'Vero2026',      perms: 'consultora', nonAssignable: true,  name: 'Verónica Rey',     initials: 'VR', role: 'Analista Consultora',units: ['consultora'],           color: '#06b6d4' },
-  { id: 'u-fh', username: 'hazan',    password: 'Federico2026',  perms: 'maximus',                          name: 'Federico Hazan',   initials: 'FH', role: 'MaximUs',            units: ['maximus'],              color: '#22c55e' },
-  { id: 'u-ax', username: 'araujo',   password: 'Max2026',       perms: 'maximus',                          name: 'Max Araujo',       initials: 'MX', role: 'MaximUs',            units: ['maximus'],              color: '#eab308' },
+  { id: 'u-sh', username: 'dehaedo',  password: 'Santiago2026',  perms: 'admin',      nonAssignable: true,  name: 'Santiago de Haedo',initials: 'SH', role: 'Director general',                   units: ['consultora','maximus'], color: '#004C99' },
+  { id: 'u-vr', username: 'vero',     password: 'Vero2026',      perms: 'consultora', nonAssignable: true,  name: 'Verónica Rey',     initials: 'VR', role: 'Directora ejecutiva',                units: ['consultora','maximus'], color: '#06b6d4' },
+  { id: 'u-mm', username: 'mautner',  password: 'Martin2026',    perms: 'admin',      nonAssignable: true,  name: 'Martín Mautner',   initials: 'MM', role: 'Director de producto',               units: ['consultora','maximus'], color: '#0066CC' },
+  { id: 'u-da', username: 'debo',     password: 'Debo2026',      perms: 'consultora',                       name: 'Deborah Amatti',   initials: 'DA', role: 'Directora de estrategia',            units: ['consultora'],           color: '#ec4899' },
+  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora',                       name: 'Pablo Machado',    initials: 'PM', role: 'Director analista de crédito',       units: ['consultora'],           color: '#14b8a6' },
+  { id: 'u-em', username: 'emeterio', password: 'Emeterio2026',  perms: 'consultora',                       name: 'Emeterio Morales', initials: 'EM', role: 'Director analista de portafolios',   units: ['consultora'],           color: '#a855f7' },
+  { id: 'u-mn', username: 'nogues',   password: 'Nogues2026',    perms: 'consultora',                       name: 'Martín Nogués',    initials: 'MN', role: 'Director analista de renta variable',units: ['consultora'],           color: '#f97316' },
+  { id: 'u-ma', username: 'mati',     password: 'Mati2026',      perms: 'consultora',                       name: 'Matías Acevedo',   initials: 'MA', role: 'Analista de portafolios',            units: ['consultora'],           color: '#3b82f6' },
+  { id: 'u-fh', username: 'hazan',    password: 'Federico2026',  perms: 'maximus',                          name: 'Federico Hazan',   initials: 'FH', role: 'Analista de datos',                  units: ['maximus'],              color: '#22c55e' },
+  { id: 'u-ax', username: 'araujo',   password: 'Max2026',       perms: 'maximus',                          name: 'Máximo Araújo',    initials: 'MX', role: 'Analista',                           units: ['maximus'],              color: '#eab308' },
+  { id: 'u-fd', username: 'donagaray',password: 'Felipe2026',    perms: 'consultora', nonAssignable: true,  name: 'Felipe Donagaray', initials: 'FD', role: 'Responsable en comunicación y marketing', units: ['consultora','maximus'], color: '#0EA5E9' },
+  { id: 'u-pl', username: 'paulina',  password: 'Paulina2026',   perms: 'consultora', nonAssignable: true,  name: 'Paulina Lorenzo',  initials: 'PL', role: 'Responsable en comunicación y marketing', units: ['consultora','maximus'], color: '#F472B6' },
 ];
 
 /* Reglas de permisos por route */
@@ -431,24 +433,55 @@ function EmptyState({ icon = 'cube', title, hint, action }) {
 /* ─────────────────────────────────────────────────────────────────────
    LOGIN
    ───────────────────────────────────────────────────────────────────── */
+/* Logo LATAM ConsultUs — SVG inline reproduciendo el lockup oficial:
+   LATAM grande + CONSULTUS con tracking expandido abajo + (opcional) divisor
+   vertical + tagline "El valor de ser independiente". Color navy oficial. */
 function LatamLogo({ size = 'md', tagline = false }) {
+  const NAVY = '#1a2240';
   const sizes = {
-    sm: { container: 'text-sm',  tag: 'text-[9px]'  },
-    md: { container: 'text-base',tag: 'text-[10px]' },
-    lg: { container: 'text-2xl', tag: 'text-xs'     },
-    xl: { container: 'text-3xl', tag: 'text-sm'     },
+    sm: { latam: 18, consult: 8.5, gap: 4, height: 32 },
+    md: { latam: 26, consult: 11,  gap: 5, height: 44 },
+    lg: { latam: 38, consult: 16,  gap: 8, height: 68 },
+    xl: { latam: 48, consult: 21,  gap: 10,height: 86 },
   };
   const s = sizes[size] || sizes.md;
+  // Aproximación del ancho del texto LATAM en font-weight 800
+  const latamW = s.latam * 3.4;
+  const tagW = size === 'sm' ? 0 : tagline ? (size === 'lg' ? 280 : 220) : 0;
+  const dividerX = latamW + 18;
+  const totalW = tagline ? dividerX + 20 + tagW : latamW;
+  const fontStack = "'Montserrat', 'Inter', system-ui, sans-serif";
+
   return (
-    <div className="inline-flex flex-col">
-      <div className={`font-display font-bold tracking-tight leading-none ${s.container}`}>
-        <span className="text-ink">LATAM </span>
-        <span className="text-gold">ConsultUs</span>
-      </div>
-      {tagline && (
-        <div className={`${s.tag} text-muted tracking-[0.18em] uppercase mt-1.5`}>El valor de ser independiente</div>
-      )}
-    </div>
+    <svg
+      viewBox={`0 0 ${totalW} ${s.height}`}
+      width={totalW} height={s.height}
+      style={{ maxWidth: '100%', height: 'auto' }}
+      role="img" aria-label="LATAM ConsultUs · El valor de ser independiente">
+      {/* LATAM */}
+      <text x="0" y={s.latam} fill={NAVY} fontFamily={fontStack} fontWeight="800" fontSize={s.latam}
+            style={{ letterSpacing: '-0.01em' }} dominantBaseline="hanging">
+        LATAM
+      </text>
+      {/* CONSULTUS con tracking */}
+      <text x="0" y={s.latam + s.gap + 2} fill={NAVY} fontFamily={fontStack} fontWeight="500" fontSize={s.consult}
+            style={{ letterSpacing: s.latam * 0.18 + 'px' }} dominantBaseline="hanging">
+        CONSULTUS
+      </text>
+      {tagline && size !== 'sm' && <>
+        {/* divisor */}
+        <line x1={dividerX} x2={dividerX} y1="3" y2={s.height - 3} stroke={NAVY} strokeWidth="1.2" opacity="0.45" />
+        {/* tagline */}
+        <text x={dividerX + 18} y={s.latam * 0.55} fill={NAVY} fontFamily={fontStack} fontWeight="400" fontSize={s.latam * 0.42}
+              dominantBaseline="hanging">
+          El valor de ser
+        </text>
+        <text x={dividerX + 18} y={s.latam * 0.55 + s.latam * 0.55} fill={NAVY} fontFamily={fontStack} fontWeight="700" fontSize={s.latam * 0.42}
+              dominantBaseline="hanging">
+          independiente
+        </text>
+      </>}
+    </svg>
   );
 }
 

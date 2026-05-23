@@ -137,6 +137,7 @@ const ICONS = {
   briefcase: 'M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16',
   trend:     'M22 7l-9 9-5-5-7 7 M16 7h6v6',
   alert:     'M12 2L1 21h22L12 2z M12 9v4 M12 17h.01',
+  menu:      'M3 12h18 M3 6h18 M3 18h18',
 };
 
 function Icon({ name, size = 18, className = '', stroke = 'currentColor' }) {
@@ -502,14 +503,19 @@ const NAV = [
   ]},
 ];
 
-function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
-  // Filtrar grupos e items según permisos del user
+function Sidebar({ route, setRoute, me, onLogout, counters, synced, mobileOpen, onMobileClose }) {
   const visibleNav = NAV
     .map(g => ({ ...g, items: g.items.filter(it => canSee(me, it.id)) }))
     .filter(g => g.items.length > 0);
 
+  const handleNav = (id) => { setRoute(id); onMobileClose?.(); };
+
   return (
-    <aside className="shrink-0 border-r border-line bg-bg-2 flex flex-col" style={{ width: 230 }}>
+    <aside className="fixed lg:relative inset-y-0 left-0 z-50 shrink-0 border-r border-line bg-bg-2 flex flex-col" style={{
+      width: 230,
+      transform: mobileOpen || (typeof window !== 'undefined' && window.innerWidth >= 1024) ? 'translateX(0)' : 'translateX(-101%)',
+      transition: 'transform .22s ease',
+    }}>
       <div className="p-4 border-b border-line">
         <LatamLogo size="sm" />
         <div className="text-[10px] text-muted leading-tight uppercase tracking-[0.18em] mt-1.5">Plataforma interna</div>
@@ -526,7 +532,7 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
                 const active = route === it.id;
                 const count = counters[it.id];
                 return (
-                  <button key={it.id} onClick={() => setRoute(it.id)}
+                  <button key={it.id} onClick={() => handleNav(it.id)}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition
                       ${active ? 'bg-gold/15 text-gold border border-gold/30' : 'text-muted hover:text-ink hover:bg-surface-2 border border-transparent'}`}>
                     <Icon name={it.icon} size={16} />
@@ -625,25 +631,23 @@ function ConsultoraKanban() {
         </>}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 px-6 pb-6 flex-1 overflow-y-auto">
+      <div className="kanban-board flex gap-3 px-3 sm:px-6 pb-6 flex-1 overflow-x-auto overflow-y-hidden">
         {CONSULTORA_COLS.map(col => (
           <div key={col.id}
                onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('drop-target'); }}
                onDragLeave={e => e.currentTarget.classList.remove('drop-target')}
                onDrop={e => onDrop(col.id, e)}
-               className="rounded-2xl bg-bg-2/60 border border-line p-3 flex flex-col min-h-[300px]">
-            <div className="flex items-center justify-between px-1 mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{col.label}</span>
-                <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-surface">{byCol[col.id].length}</span>
-              </div>
+               className="kanban-col shrink-0 flex flex-col rounded-lg bg-bg-2 border border-line">
+            <div className="px-3 py-2.5 flex items-center justify-between border-b border-line">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-2">{col.label}</span>
+              <span className="text-[10px] font-medium text-muted px-1.5 py-0.5 rounded bg-surface tabular-nums">{byCol[col.id].length}</span>
             </div>
-            <div className="space-y-2 flex-1">
+            <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[120px]">
               {byCol[col.id].map(card => (
                 <KanbanCard key={card.id} card={card} team={state.team} onClick={() => setEditing(card)} />
               ))}
               {byCol[col.id].length === 0 && (
-                <div className="text-[12px] text-muted/70 px-2 py-6 text-center">Vacío</div>
+                <div className="text-[11px] text-muted/60 px-2 py-6 text-center italic">Vacío</div>
               )}
             </div>
           </div>
@@ -1471,22 +1475,22 @@ function MaximusProspects() {
           <Btn onClick={() => setCreating(true)}><Icon name="plus" size={16} />Nuevo prospect</Btn>
         </>}
       />
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 px-6 pb-6 flex-1 overflow-y-auto">
+      <div className="kanban-board flex gap-3 px-3 sm:px-6 pb-6 flex-1 overflow-x-auto overflow-y-hidden">
         {PROSPECT_COLS.map(col => (
           <div key={col.id}
             onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('drop-target'); }}
             onDragLeave={e => e.currentTarget.classList.remove('drop-target')}
             onDrop={e => onDrop(col.id, e)}
-            className="rounded-2xl bg-bg-2/60 border border-line p-3 flex flex-col min-h-[300px]">
-            <div className="flex items-center justify-between px-1 mb-2">
-              <span className="text-sm font-semibold">{col.label}</span>
-              <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-surface">{byCol[col.id].length}</span>
+            className="kanban-col shrink-0 flex flex-col rounded-lg bg-bg-2 border border-line">
+            <div className="px-3 py-2.5 flex items-center justify-between border-b border-line">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-2">{col.label}</span>
+              <span className="text-[10px] font-medium text-muted px-1.5 py-0.5 rounded bg-surface tabular-nums">{byCol[col.id].length}</span>
             </div>
-            <div className="space-y-2 flex-1">
+            <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[120px]">
               {byCol[col.id].map(p => (
                 <ProspectCard key={p.id} p={p} onClick={() => setEditing(p)} />
               ))}
-              {byCol[col.id].length === 0 && <div className="text-[11px] text-muted/70 px-2 py-6 text-center">Vacío</div>}
+              {byCol[col.id].length === 0 && <div className="text-[11px] text-muted/60 px-2 py-6 text-center italic">Vacío</div>}
             </div>
           </div>
         ))}
@@ -1641,22 +1645,22 @@ function MaximusTasks() {
         </>}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 px-6 pb-6 flex-1 overflow-y-auto">
+      <div className="kanban-board flex gap-3 px-3 sm:px-6 pb-6 flex-1 overflow-x-auto overflow-y-hidden">
         {TASK_COLS.map(col => (
           <div key={col.id}
             onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('drop-target'); }}
             onDragLeave={e => e.currentTarget.classList.remove('drop-target')}
             onDrop={e => onDrop(col.id, e)}
-            className="rounded-2xl bg-bg-2/60 border border-line p-3 flex flex-col min-h-[300px]">
-            <div className="flex items-center justify-between px-1 mb-2">
-              <span className="text-sm font-semibold">{col.label}</span>
-              <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-surface">{byCol[col.id].length}</span>
+            className="kanban-col shrink-0 flex flex-col rounded-lg bg-bg-2 border border-line">
+            <div className="px-3 py-2.5 flex items-center justify-between border-b border-line">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-2">{col.label}</span>
+              <span className="text-[10px] font-medium text-muted px-1.5 py-0.5 rounded bg-surface tabular-nums">{byCol[col.id].length}</span>
             </div>
-            <div className="space-y-2 flex-1">
+            <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[120px]">
               {byCol[col.id].map(t => (
                 <TaskCard key={t.id} t={t} team={team} onClick={() => setEditing(t)} />
               ))}
-              {byCol[col.id].length === 0 && <div className="text-[11px] text-muted/70 px-2 py-6 text-center">Vacío</div>}
+              {byCol[col.id].length === 0 && <div className="text-[11px] text-muted/60 px-2 py-6 text-center italic">Vacío</div>}
             </div>
           </div>
         ))}
@@ -1789,12 +1793,12 @@ function TaskEditor({ open, task, team, me, onClose, onSave, onDelete, onComment
    ───────────────────────────────────────────────────────────────────── */
 function PageHeader({ title, subtitle, actions }) {
   return (
-    <div className="px-6 py-5 border-b border-line flex flex-wrap items-center gap-3">
+    <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-line flex flex-col lg:flex-row lg:items-center gap-3">
       <div className="flex-1 min-w-0">
-        <h1 className="text-2xl font-bold leading-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-muted mt-0.5">{subtitle}</p>}
+        <h1 className="text-xl sm:text-2xl font-bold leading-tight">{title}</h1>
+        {subtitle && <p className="text-xs sm:text-sm text-muted mt-0.5">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-2 flex-wrap">{actions}</div>
+      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
     </div>
   );
 }
@@ -1887,6 +1891,7 @@ function App() {
   const [state, dispatch, syncedRemote] = useStore();
   const [sessionId, setSessionId] = useState(() => ls.get(SESSION_KEY));
   const [route, setRoute] = useState(() => location.hash.replace('#','') || 'consult/kanban');
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => { ls.set(SESSION_KEY, sessionId); }, [sessionId]);
   useEffect(() => { const onHash = () => setRoute(location.hash.replace('#','') || 'consult/kanban'); window.addEventListener('hashchange', onHash); return () => window.removeEventListener('hashchange', onHash); }, []);
@@ -1922,11 +1927,30 @@ function App() {
     default:                 view = <ConsultoraKanban />;
   }
 
+  const currentLabel = (() => {
+    for (const g of NAV) for (const it of g.items) if (it.id === route) return it.label;
+    return '';
+  })();
+
   return (
     <AppCtx.Provider value={{ state, dispatch, me }}>
       <div className="h-full flex">
-        <Sidebar route={route} setRoute={setRoute} me={me} counters={counters} synced={syncedRemote} onLogout={() => setSessionId(null)} />
-        <main className="flex-1 min-w-0 flex flex-col">{view}</main>
+        {/* Backdrop mobile */}
+        {mobileOpen && <div className="mobile-backdrop lg:hidden" onClick={() => setMobileOpen(false)} />}
+        <Sidebar route={route} setRoute={setRoute} me={me} counters={counters} synced={syncedRemote}
+                 mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)}
+                 onLogout={() => { setSessionId(null); setMobileOpen(false); }} />
+        <main className="flex-1 min-w-0 flex flex-col">
+          {/* Topbar mobile only */}
+          <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-line bg-bg sticky top-0 z-30">
+            <button onClick={() => setMobileOpen(true)} className="p-1.5 -ml-1 text-ink hover:text-gold">
+              <Icon name="menu" size={20} />
+            </button>
+            <LatamLogo size="sm" />
+            <div className="ml-auto text-xs text-muted truncate">{currentLabel}</div>
+          </div>
+          {view}
+        </main>
       </div>
     </AppCtx.Provider>
   );

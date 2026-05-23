@@ -88,3 +88,24 @@ h1,h2,h3,h4 { letter-spacing: -0.01em; font-weight: 600; color: var(--ink); }
 
 /* tabular numbers en cualquier .num */
 .num, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Kanban estilo Jira: columnas de ancho fijo, scroll horizontal */
+.kanban-board { scrollbar-gutter: stable; }
+.kanban-col {
+  width: 288px;
+  max-height: 100%;
+}
+@media (max-width: 640px) {
+  .kanban-col { width: 84vw; max-width: 320px; }
+}
+
+/* Mobile drawer backdrop */
+.mobile-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15,37,64,0.45);
+  z-index: 40;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+

@@ -442,25 +442,12 @@ function LatamLogo({ size = 'md', tagline = false }) {
 }
 
 /* Logo MaximUs — imagen PNG oficial (extraída del docx de firmas). */
-function MaximusLogo({ size = 'md', tagline = false }) {
-  const sizes = {
-    sm: { h: 30, tag: 9  },
-    md: { h: 44, tag: 10 },
-    lg: { h: 64, tag: 12 },
-    xl: { h: 84, tag: 14 },
-  };
-  const s = sizes[size] || sizes.md;
+function MaximusLogo({ size = 'md' }) {
+  const sizes = { sm: 30, md: 44, lg: 64, xl: 84 };
+  const h = sizes[size] || sizes.md;
   return (
-    <div className="inline-flex items-center gap-3">
-      <img src="./assets/maximus-logo.png" alt="MaximUs"
-           style={{ height: s.h, width: 'auto', display: 'block' }} />
-      {tagline && size !== 'sm' && (
-        <div className="flex flex-col leading-tight pl-3 border-l border-line">
-          <span className="text-ink" style={{ fontSize: s.tag * 1.2, lineHeight: 1.1 }}>El valor de ser</span>
-          <span className="text-ink font-bold" style={{ fontSize: s.tag * 1.2, lineHeight: 1.1 }}>independiente</span>
-        </div>
-      )}
-    </div>
+    <img src="./assets/maximus-logo.png" alt="MaximUs"
+         style={{ height: h, width: 'auto', display: 'block' }} />
   );
 }
 

@@ -74,7 +74,22 @@
 </head>
 <body class="bg-bg text-ink antialiased">
   <div id="root"></div>
+
+  <!--
+    Para activar sincronización con el equipo (Supabase), descomentar y rellenar
+    con la URL y anon key del proyecto:
+
+    <script>
+      window.SUPABASE_CFG = {
+        url: 'https://XXXXXXXX.supabase.co',
+        anonKey: 'eyJhbGciOi...'
+      };
+    </script>
+
+    Si SUPABASE_CFG NO está, la app usa localStorage (cada uno ve sus datos).
+  -->
   <script src="./seed-clients.js"></script>
+  <script src="./supabase/client.js"></script>
   <script type="text/babel" data-presets="react" src="./app.jsx"></script>
 </body>
 </html>

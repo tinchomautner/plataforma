@@ -287,9 +287,9 @@ function Btn({ children, onClick, variant = 'primary', size = 'md', className = 
   const base = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition border';
   const sizes = { sm: 'px-2.5 py-1.5 text-xs', md: 'px-3.5 py-2 text-sm', lg: 'px-4 py-2.5 text-sm' };
   const variants = {
-    primary: 'bg-gold hover:bg-gold-2 text-white border-gold shadow-gold',
-    ghost:   'bg-white/0 hover:bg-white/5 text-white border-white/10',
-    soft:    'bg-white/5 hover:bg-white/10 text-white border-white/10',
+    primary: 'bg-gold hover:bg-gold-2 text-bg border-gold shadow-gold',
+    ghost:   'bg-transparent hover:bg-surface-2 text-ink border-line',
+    soft:    'bg-surface-2 hover:bg-surface-3 text-ink border-line',
     danger:  'bg-bad/10 hover:bg-bad/20 text-bad border-bad/30',
   };
   return (
@@ -307,7 +307,7 @@ function Modal({ open, onClose, title, children, width = 'max-w-xl' }) {
       <div className={`w-full ${width} bg-surface border border-line rounded-2xl shadow-card`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           <h3 className="font-semibold text-base">{title}</h3>
-          <button onClick={onClose} className="text-muted hover:text-white"><Icon name="x" /></button>
+          <button onClick={onClose} className="text-muted hover:text-ink"><Icon name="x" /></button>
         </div>
         <div className="px-5 py-4 max-h-[75vh] overflow-y-auto">{children}</div>
       </div>
@@ -400,7 +400,7 @@ const NAV = [
   ]},
 ];
 
-function Sidebar({ route, setRoute, me, onLogout, counters }) {
+function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
   return (
     <aside className="shrink-0 border-r border-line bg-bg-2 flex flex-col" style={{ width: 230 }}>
       <div className="p-4 flex items-center gap-2.5 border-b border-line">
@@ -424,7 +424,7 @@ function Sidebar({ route, setRoute, me, onLogout, counters }) {
                 return (
                   <button key={it.id} onClick={() => setRoute(it.id)}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition
-                      ${active ? 'bg-gold/15 text-white border border-gold/30' : 'text-muted hover:text-white hover:bg-white/5 border border-transparent'}`}>
+                      ${active ? 'bg-gold/15 text-gold border border-gold/30' : 'text-muted hover:text-ink hover:bg-white/5 border border-transparent'}`}>
                     <Icon name={it.icon} size={16} />
                     <span className="flex-1 text-left">{it.label}</span>
                     {count > 0 && (
@@ -445,7 +445,11 @@ function Sidebar({ route, setRoute, me, onLogout, counters }) {
             <div className="text-sm font-medium truncate">{me.name}</div>
             <div className="text-[11px] text-muted truncate">{me.role}</div>
           </div>
-          <button onClick={onLogout} title="Cerrar sesión" className="text-muted hover:text-white"><Icon name="logout" size={16} /></button>
+          <button onClick={onLogout} title="Cerrar sesión" className="text-muted hover:text-ink"><Icon name="logout" size={16} /></button>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 pt-1 text-[10px] text-muted">
+          <span className={`w-1.5 h-1.5 rounded-full ${synced ? 'bg-ok' : 'bg-muted'}`} />
+          {synced ? 'Sincronizado con equipo' : 'Local (sin sync)'}
         </div>
       </div>
     </aside>
@@ -557,7 +561,7 @@ function KanbanCard({ card, team, onClick }) {
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="min-w-0">
           <div className="text-[13px] font-semibold truncate">{card.cliente}</div>
-          <div className="text-[12px] text-white/85 line-clamp-2">{card.descripcion}</div>
+          <div className="text-[12px] text-ink-2 line-clamp-2">{card.descripcion}</div>
         </div>
         <PriorityBadge value={card.prioridad} />
       </div>
@@ -662,8 +666,8 @@ function ConsultoraCalendar() {
         subtitle="Vista mensual o semanal de los pedidos activos del equipo de Consultora."
         actions={<>
           <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-line">
-            <button onClick={() => setView('mes')} className={`px-3 py-1.5 text-xs rounded-md ${view==='mes'?'bg-gold text-white':'text-muted'}`}>Mes</button>
-            <button onClick={() => setView('sem')} className={`px-3 py-1.5 text-xs rounded-md ${view==='sem'?'bg-gold text-white':'text-muted'}`}>Semana</button>
+            <button onClick={() => setView('mes')} className={`px-3 py-1.5 text-xs rounded-md ${view==='mes'?'bg-gold text-bg':'text-muted'}`}>Mes</button>
+            <button onClick={() => setView('sem')} className={`px-3 py-1.5 text-xs rounded-md ${view==='sem'?'bg-gold text-bg':'text-muted'}`}>Semana</button>
           </div>
           <Btn variant="soft" size="sm" onClick={() => move(-1)}><Icon name="chevL" size={14} /></Btn>
           <Btn variant="soft" size="sm" onClick={() => setAnchor(new Date())}>Hoy</Btn>
@@ -774,10 +778,10 @@ function CardDetail({ card, team }) {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <PriorityBadge value={card.prioridad} />
-        <Badge className="bg-white/5 border-white/10 text-white/80">{CONSULTORA_COLS.find(c => c.id === card.estado)?.label}</Badge>
+        <Badge className="bg-surface-2 border-line text-ink-2">{CONSULTORA_COLS.find(c => c.id === card.estado)?.label}</Badge>
       </div>
       <h3 className="text-lg font-semibold">{card.cliente}</h3>
-      <p className="text-sm text-white/85">{card.descripcion}</p>
+      <p className="text-sm text-ink-2">{card.descripcion}</p>
       <div className="hr-soft" />
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div><div className="text-[11px] text-muted">Analista</div><div className="flex items-center gap-2 mt-1">{a ? <><Avatar user={a} size={20} />{a.name}</> : 'Sin asignar'}</div></div>
@@ -836,7 +840,7 @@ function ConsultoraMetrics() {
           <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-line">
             {['dia','semana','mes'].map(p => (
               <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs rounded-md capitalize ${period === p ? 'bg-gold text-white' : 'text-muted'}`}>
+                className={`px-3 py-1.5 text-xs rounded-md capitalize ${period === p ? 'bg-gold text-bg' : 'text-muted'}`}>
                 {p === 'dia' ? 'Hoy' : p === 'semana' ? '7 días' : '30 días'}
               </button>
             ))}
@@ -1356,7 +1360,7 @@ function ProspectCard({ p, onClick }) {
         </div>
         {p.clienteCompartido && <Badge className="bg-gold/15 text-gold border-gold/30"><Icon name="link" size={10} />{p.clienteCompartido}</Badge>}
       </div>
-      <div className="mt-2 text-[12px] text-white/85 line-clamp-2">{p.producto}</div>
+      <div className="mt-2 text-[12px] text-ink-2 line-clamp-2">{p.producto}</div>
       {p.proxSeguimiento && (
         <div className="mt-2 flex items-center gap-1 text-[11px] text-muted"><Icon name="clock" size={11} />Próx: {fmtDate(p.proxSeguimiento)}</div>
       )}
@@ -1448,8 +1452,8 @@ function MaximusTasks() {
         subtitle="Tablero compartido. Una tarea puede tener varios responsables. Cada uno ve todas o solo las suyas."
         actions={<>
           <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-line">
-            <button onClick={() => setScope('todas')} className={`px-3 py-1.5 text-xs rounded-md ${scope==='todas'?'bg-gold text-white':'text-muted'}`}>Todas</button>
-            <button onClick={() => setScope('mias')}  className={`px-3 py-1.5 text-xs rounded-md ${scope==='mias' ?'bg-gold text-white':'text-muted'}`}>Mías</button>
+            <button onClick={() => setScope('todas')} className={`px-3 py-1.5 text-xs rounded-md ${scope==='todas'?'bg-gold text-bg':'text-muted'}`}>Todas</button>
+            <button onClick={() => setScope('mias')}  className={`px-3 py-1.5 text-xs rounded-md ${scope==='mias' ?'bg-gold text-bg':'text-muted'}`}>Mías</button>
           </div>
           <div className="relative">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -1506,7 +1510,7 @@ function TaskCard({ t, team, onClick }) {
         <div className="text-[13px] font-semibold pr-1">{t.titulo}</div>
         <PriorityBadge value={t.prioridad} />
       </div>
-      <div className="text-[12px] text-white/80 line-clamp-2 mt-1">{t.descripcion}</div>
+      <div className="text-[12px] text-ink-2 line-clamp-2 mt-1">{t.descripcion}</div>
       <div className="flex items-center justify-between mt-2.5">
         <div className="flex -space-x-1.5">
           {asignados.slice(0,4).map(a => <Avatar key={a.id} user={a} size={20} />)}
@@ -1557,7 +1561,7 @@ function TaskEditor({ open, task, team, me, onClose, onSave, onDelete, onComment
             const sel = form.asignados.includes(u.id);
             return (
               <button key={u.id} type="button" onClick={() => toggleUser(u.id)}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-sm ${sel ? 'bg-gold/15 border-gold/40' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-sm ${sel ? 'bg-gold/15 border-gold/40 text-ink' : 'bg-surface-2 border-line text-ink-2 hover:bg-surface-3'}`}>
                 <Avatar user={u} size={20} />
                 {u.name}
               </button>
@@ -1618,14 +1622,94 @@ function PageHeader({ title, subtitle, actions }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────
+   Store: usa Supabase si window.SUPA?.enabled, sino localStorage
+   ───────────────────────────────────────────────────────────────────── */
+function useStore() {
+  const [state, baseDispatch] = useReducer(reducer, null, initialState);
+  const [supaReady, setSupaReady] = useState(() => !!window.SUPA?.enabled);
+
+  useEffect(() => {
+    if (!window.SUPA && window.SUPABASE_CFG) {
+      const onReady = () => setSupaReady(!!window.SUPA?.enabled);
+      window.addEventListener('supa-ready', onReady);
+      return () => window.removeEventListener('supa-ready', onReady);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!supaReady) return;
+    let unsub = null, alive = true;
+    (async () => {
+      try {
+        const remote = await window.SUPA.fetchAll();
+        if (alive && remote.team.length) baseDispatch({ type: 'RESET', state: remote });
+      } catch (e) { console.error('Supabase fetch error', e); }
+      if (!alive) return;
+      unsub = window.SUPA.subscribe(async () => {
+        try {
+          const remote = await window.SUPA.fetchAll();
+          if (alive) baseDispatch({ type: 'RESET', state: remote });
+        } catch (e) {}
+      });
+    })();
+    return () => { alive = false; if (unsub) unsub(); };
+  }, [supaReady]);
+
+  useEffect(() => { if (!supaReady) ls.set(STORAGE_KEY, state); }, [state, supaReady]);
+
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  const dispatch = useCallback((action) => {
+    baseDispatch(action);
+    if (!supaReady) return;
+    const SUPA = window.SUPA;
+    const s = stateRef.current;
+    try {
+      switch (action.type) {
+        case 'CONSULT_ADD':
+        case 'CONSULT_UPDATE': SUPA.upsertCard({ ...s.consultora.cards.find(c => c.id === action.card.id), ...action.card }); break;
+        case 'CONSULT_MOVE': {
+          const card = s.consultora.cards.find(c => c.id === action.id);
+          if (card) SUPA.upsertCard({ ...card, estado: action.estado, completedAt: action.estado === 'done' ? Date.now() : null });
+          break;
+        }
+        case 'CONSULT_DELETE': SUPA.deleteCard(action.id); break;
+        case 'CLIENT_UPSERT':  SUPA.upsertClient(action.client); break;
+        case 'CLIENT_BULK':    Promise.all(action.clients.map(c => SUPA.upsertClient(c))); break;
+        case 'CLIENT_DELETE':  SUPA.deleteClient(action.id); break;
+        case 'PROS_ADD':
+        case 'PROS_UPDATE':    SUPA.upsertProspect({ ...s.maximus.prospects.find(p => p.id === action.p.id), ...action.p }); break;
+        case 'PROS_MOVE': {
+          const p = s.maximus.prospects.find(x => x.id === action.id);
+          if (p) SUPA.upsertProspect({ ...p, estado: action.estado });
+          break;
+        }
+        case 'PROS_DELETE':    SUPA.deleteProspect(action.id); break;
+        case 'TASK_ADD':
+        case 'TASK_UPDATE':    SUPA.upsertTask({ ...s.maximus.tasks.find(t => t.id === action.t.id), ...action.t }); break;
+        case 'TASK_MOVE': {
+          const t = s.maximus.tasks.find(x => x.id === action.id);
+          if (t) SUPA.upsertTask({ ...t, estado: action.estado });
+          break;
+        }
+        case 'TASK_DELETE':    SUPA.deleteTask(action.id); break;
+        case 'TASK_COMMENT':   SUPA.addComment(action.id, action.c); break;
+      }
+    } catch (e) { console.error('Supabase persist error', e); }
+  }, [supaReady]);
+
+  return [state, dispatch, supaReady];
+}
+
+/* ─────────────────────────────────────────────────────────────────────
    APP ROOT
    ───────────────────────────────────────────────────────────────────── */
 function App() {
-  const [state, dispatch] = useReducer(reducer, null, initialState);
+  const [state, dispatch, syncedRemote] = useStore();
   const [sessionId, setSessionId] = useState(() => ls.get(SESSION_KEY));
   const [route, setRoute] = useState(() => location.hash.replace('#','') || 'consult/kanban');
 
-  useEffect(() => { ls.set(STORAGE_KEY, state); }, [state]);
   useEffect(() => { ls.set(SESSION_KEY, sessionId); }, [sessionId]);
   useEffect(() => { const onHash = () => setRoute(location.hash.replace('#','') || 'consult/kanban'); window.addEventListener('hashchange', onHash); return () => window.removeEventListener('hashchange', onHash); }, []);
   useEffect(() => { location.hash = route; }, [route]);
@@ -1657,7 +1741,7 @@ function App() {
   return (
     <AppCtx.Provider value={{ state, dispatch, me }}>
       <div className="h-full flex">
-        <Sidebar route={route} setRoute={setRoute} me={me} counters={counters} onLogout={() => setSessionId(null)} />
+        <Sidebar route={route} setRoute={setRoute} me={me} counters={counters} synced={syncedRemote} onLogout={() => setSessionId(null)} />
         <main className="flex-1 min-w-0 flex flex-col">{view}</main>
       </div>
     </AppCtx.Provider>

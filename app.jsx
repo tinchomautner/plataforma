@@ -115,18 +115,38 @@ function Icon({ name, size = 18, className = '', stroke = 'currentColor' }) {
 /* ─────────────────────────────────────────────────────────────────────
    Seed data
    ───────────────────────────────────────────────────────────────────── */
+/* Equipo. perms: 'admin' (ve todo, incluye métricas Consultora),
+   'consultora' (sin métricas), 'maximus' (solo MaximUs).
+   La password es solo barrera de entrada en uso interno — los analistas pueden
+   cambiarla en su perfil. Para auth real usamos Supabase Auth (magic link). */
 const TEAM_SEED = [
-  { id: 'u-mm', name: 'Martín Mautner',   initials: 'MM', role: 'Admin · Analista',  units: ['consultora','maximus'], color: '#d8b257' },
-  { id: 'u-sh', name: 'Santiago de Haedo',initials: 'SH', role: 'Analista · MaximUs',units: ['consultora','maximus'], color: '#b89441' },
-  { id: 'u-ma', name: 'Matías Acevedo',   initials: 'MA', role: 'Analista',          units: ['consultora'],           color: '#3b82f6' },
-  { id: 'u-pm', name: 'Pablo Machado',    initials: 'PM', role: 'Analista',          units: ['consultora'],           color: '#14b8a6' },
-  { id: 'u-da', name: 'Deborah Amatti',   initials: 'DA', role: 'Analista',          units: ['consultora'],           color: '#ec4899' },
-  { id: 'u-em', name: 'Emeterio Morales', initials: 'EM', role: 'Analista',          units: ['consultora'],           color: '#a855f7' },
-  { id: 'u-mn', name: 'Martín Nogués',    initials: 'MN', role: 'Analista',          units: ['consultora'],           color: '#f97316' },
-  { id: 'u-vr', name: 'Verónica Rey',     initials: 'VR', role: 'Analista',          units: ['consultora'],           color: '#06b6d4' },
-  { id: 'u-fh', name: 'Federico Hazan',   initials: 'FH', role: 'MaximUs',           units: ['maximus'],              color: '#22c55e' },
-  { id: 'u-ax', name: 'Max Araujo',       initials: 'MX', role: 'MaximUs',           units: ['maximus'],              color: '#eab308' },
+  { id: 'u-mm', username: 'mautner',  password: 'Martin2026',    perms: 'admin',      name: 'Martín Mautner',   initials: 'MM', role: 'Admin',              units: ['consultora','maximus'], color: '#0066CC' },
+  { id: 'u-sh', username: 'dehaedo',  password: 'Santiago2026',  perms: 'admin',      name: 'Santiago de Haedo',initials: 'SH', role: 'Admin',              units: ['consultora','maximus'], color: '#004C99' },
+  { id: 'u-ma', username: 'mati',     password: 'Mati2026',      perms: 'consultora', name: 'Matías Acevedo',   initials: 'MA', role: 'Analista Consultora',units: ['consultora'],           color: '#3b82f6' },
+  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora', name: 'Pablo Machado',    initials: 'PM', role: 'Analista Consultora',units: ['consultora'],           color: '#14b8a6' },
+  { id: 'u-da', username: 'debo',     password: 'Debo2026',      perms: 'consultora', name: 'Deborah Amatti',   initials: 'DA', role: 'Analista Consultora',units: ['consultora'],           color: '#ec4899' },
+  { id: 'u-em', username: 'emeterio', password: 'Emeterio2026',  perms: 'consultora', name: 'Emeterio Morales', initials: 'EM', role: 'Analista Consultora',units: ['consultora'],           color: '#a855f7' },
+  { id: 'u-mn', username: 'nogues',   password: 'Nogues2026',    perms: 'consultora', name: 'Martín Nogués',    initials: 'MN', role: 'Analista Consultora',units: ['consultora'],           color: '#f97316' },
+  { id: 'u-vr', username: 'vero',     password: 'Vero2026',      perms: 'consultora', name: 'Verónica Rey',     initials: 'VR', role: 'Analista Consultora',units: ['consultora'],           color: '#06b6d4' },
+  { id: 'u-fh', username: 'hazan',    password: 'Federico2026',  perms: 'maximus',    name: 'Federico Hazan',   initials: 'FH', role: 'MaximUs',            units: ['maximus'],              color: '#22c55e' },
+  { id: 'u-ax', username: 'araujo',   password: 'Max2026',       perms: 'maximus',    name: 'Max Araujo',       initials: 'MX', role: 'MaximUs',            units: ['maximus'],              color: '#eab308' },
 ];
+
+/* Reglas de permisos por route */
+const ROUTE_PERMS = {
+  'consult/kanban':   ['admin','consultora'],
+  'consult/calendar': ['admin','consultora'],
+  'consult/metrics':  ['admin'],
+  'max/usage':        ['admin','maximus'],
+  'max/prospects':    ['admin','maximus'],
+  'max/tasks':        ['admin','maximus'],
+};
+const canSee = (user, routeId) => {
+  if (!user) return false;
+  const allowed = ROUTE_PERMS[routeId];
+  return allowed && allowed.includes(user.perms);
+};
+const firstVisibleRoute = (user) => Object.keys(ROUTE_PERMS).find(r => canSee(user, r)) || 'consult/kanban';
 
 const CONSULTORA_COLS = [
   { id: 'backlog',    label: 'Backlog' },
@@ -176,13 +196,8 @@ const seedClients = () => {
 };
 
 const seedProspects = () => {
-  const t = now();
-  return [
-    { id: uid(), empresa: 'Santander',  contacto: 'J. Rodríguez', producto: 'MaximUs Enterprise', notas: 'Ya tenemos a Banco Macro como cliente — interesados.', proxSeguimiento: t + 5*DAY, estado: 'negociacion', clienteCompartido: 'Banco Macro' },
-    { id: uid(), empresa: 'Itaú',       contacto: 'P. Silveira',  producto: 'MaximUs Pro',        notas: 'Propuesta enviada el lunes.',                          proxSeguimiento: t + 1*DAY, estado: 'propuesta',   clienteCompartido: '' },
-    { id: uid(), empresa: 'BBVA Cono Sur', contacto: 'C. Méndez', producto: 'MaximUs Enterprise', notas: 'Cliente compartido — ya activos.',                     proxSeguimiento: null,      estado: 'ganado',      clienteCompartido: 'Comafi' },
-    { id: uid(), empresa: 'HSBC',       contacto: 'R. Torres',    producto: 'MaximUs Pro',        notas: 'Decidieron seguir con su tool actual.',                proxSeguimiento: null,      estado: 'perdido',     clienteCompartido: '' },
-  ];
+  const arr = (typeof window !== 'undefined' && window.SEED_PROSPECTS) || [];
+  return arr.slice();
 };
 
 const seedTasks = () => {
@@ -344,39 +359,75 @@ function EmptyState({ icon = 'cube', title, hint, action }) {
 /* ─────────────────────────────────────────────────────────────────────
    LOGIN
    ───────────────────────────────────────────────────────────────────── */
-function Login({ team, onLogin }) {
+function LatamLogo({ size = 'md', tagline = false }) {
+  const sizes = {
+    sm: { container: 'text-sm',  tag: 'text-[9px]'  },
+    md: { container: 'text-base',tag: 'text-[10px]' },
+    lg: { container: 'text-2xl', tag: 'text-xs'     },
+    xl: { container: 'text-3xl', tag: 'text-sm'     },
+  };
+  const s = sizes[size] || sizes.md;
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-3xl">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-lg bg-gold-grad shadow-gold grid place-items-center font-bold text-white text-lg">L</div>
-          <div>
-            <div className="font-semibold text-xl tracking-tight text-ink">Plataforma Interna</div>
-            <div className="text-xs text-muted uppercase tracking-wider">LATAM ConsultUs · MaximUs</div>
+    <div className="inline-flex flex-col">
+      <div className={`font-display font-bold tracking-tight leading-none ${s.container}`}>
+        <span className="text-ink">LATAM </span>
+        <span className="text-gold">ConsultUs</span>
+      </div>
+      {tagline && (
+        <div className={`${s.tag} text-muted tracking-[0.18em] uppercase mt-1.5`}>El valor de ser independiente</div>
+      )}
+    </div>
+  );
+}
+
+function Login({ team, onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const submit = (e) => {
+    e?.preventDefault();
+    const u = team.find(x => (x.username || '').toLowerCase() === username.trim().toLowerCase());
+    if (!u || u.password !== password) { setError('Usuario o contraseña incorrectos.'); return; }
+    setError(''); onLogin(u.id);
+  };
+  return (
+    <div className="min-h-screen grid lg:grid-cols-2">
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-bg-2 border-r border-line">
+        <LatamLogo size="lg" tagline />
+        <div>
+          <h2 className="font-display text-2xl font-semibold text-ink mb-3 leading-tight">
+            Plataforma interna del equipo
+          </h2>
+          <p className="text-sm text-ink-2 max-w-md">
+            Gestión de pedidos de Consultora, seguimiento de uso de MaximUs y pipeline comercial.
+            Sincronizado entre los analistas del equipo.
+          </p>
+          <div className="mt-8 flex items-center gap-3 text-xs text-muted">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold" />
+            Versión interna · {new Date().getFullYear()}
           </div>
         </div>
-
-        <div className="bg-surface border border-line rounded-2xl p-6 shadow-card">
-          <h2 className="text-lg font-semibold mb-1">¿Quién sos?</h2>
-          <p className="text-sm text-muted mb-5">Elegí tu usuario para entrar. La sesión queda guardada en este navegador.</p>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {team.map(u => (
-              <button key={u.id} onClick={() => onLogin(u.id)}
-                className="card-lift text-left flex items-center gap-3 p-3 rounded-xl border border-line bg-surface hover:bg-surface-2">
-                <Avatar user={u} size={40} />
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">{u.name}</div>
-                  <div className="text-[11px] text-muted">{u.role}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="hr-soft my-5" />
-          <p className="text-[12px] text-muted">
-            Sin servidor, sin base de datos: todos los datos se guardan localmente en tu navegador.
-            Para compartir datos con el equipo, más adelante se puede migrar a Supabase (free tier).
+        <div className="text-[10px] text-muted">© LATAM ConsultUs · Punta del Este, Uruguay</div>
+      </div>
+      <div className="flex items-center justify-center p-8">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden mb-6"><LatamLogo size="md" tagline /></div>
+          <h1 className="font-display text-xl font-semibold mb-1 text-ink">Iniciar sesión</h1>
+          <p className="text-sm text-muted mb-6">Ingresá con tu usuario y contraseña.</p>
+          <form onSubmit={submit} className="space-y-3">
+            <Field label="Usuario">
+              <input value={username} onChange={e => setUsername(e.target.value)} autoFocus autoComplete="username" placeholder="ej: mautner" />
+            </Field>
+            <Field label="Contraseña">
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" placeholder="•••••••••" />
+            </Field>
+            {error && <div className="text-bad text-xs px-1">{error}</div>}
+            <Btn type="submit" className="w-full justify-center mt-2">Entrar</Btn>
+          </form>
+          <div className="hr-soft my-6" />
+          <p className="text-[11px] text-muted">
+            ¿Olvidaste tu contraseña? Pedile a Martín o Santiago que te la recuerden.<br/>
+            En la próxima versión la app va a usar login con magic link por email.
           </p>
         </div>
       </div>
@@ -401,18 +452,20 @@ const NAV = [
 ];
 
 function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
+  // Filtrar grupos e items según permisos del user
+  const visibleNav = NAV
+    .map(g => ({ ...g, items: g.items.filter(it => canSee(me, it.id)) }))
+    .filter(g => g.items.length > 0);
+
   return (
     <aside className="shrink-0 border-r border-line bg-bg-2 flex flex-col" style={{ width: 230 }}>
-      <div className="p-4 flex items-center gap-2.5 border-b border-line">
-        <div className="w-8 h-8 rounded-lg bg-gold-grad shadow-gold grid place-items-center font-bold text-white text-sm">L</div>
-        <div className="min-w-0">
-          <div className="font-semibold text-sm leading-tight text-ink">Plataforma</div>
-          <div className="text-[10px] text-muted leading-tight uppercase tracking-wider mt-0.5">LATAM · MaximUs</div>
-        </div>
+      <div className="p-4 border-b border-line">
+        <LatamLogo size="sm" />
+        <div className="text-[10px] text-muted leading-tight uppercase tracking-[0.18em] mt-1.5">Plataforma interna</div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-5">
-        {NAV.map(group => (
+        {visibleNav.map(group => (
           <div key={group.group}>
             <div className="text-[10px] font-semibold tracking-[0.18em] uppercase text-muted/80 px-2 mb-2">
               {group.group}
@@ -1737,6 +1790,12 @@ function App() {
   }), [state]);
 
   if (!me) return <Login team={state.team} onLogin={setSessionId} />;
+
+  // Guard: si la ruta no es accesible para este user, redirigir
+  if (!canSee(me, route)) {
+    const fallback = firstVisibleRoute(me);
+    if (fallback !== route) { setRoute(fallback); return null; }
+  }
 
   let view = null;
   switch (route) {

@@ -9,6 +9,9 @@
 -- Equipo
 create table if not exists public.team (
   id           text primary key,
+  username     text unique not null,
+  password     text not null,            -- placeholder mientras no usamos Supabase Auth
+  perms        text not null default 'consultora', -- 'admin' | 'consultora' | 'maximus'
   name         text not null,
   initials     text not null,
   role         text not null,

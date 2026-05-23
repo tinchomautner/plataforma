@@ -438,14 +438,14 @@ function EmptyState({ icon = 'cube', title, hint, action }) {
    vertical + tagline "El valor de ser independiente". Color navy oficial. */
 function LatamLogo({ size = 'md', tagline = false }) {
   const NAVY = '#1a2240';
+  const ACCENT = '#0066CC';
   const sizes = {
-    sm: { latam: 18, consult: 8.5, gap: 4, height: 32 },
-    md: { latam: 26, consult: 11,  gap: 5, height: 44 },
-    lg: { latam: 38, consult: 16,  gap: 8, height: 68 },
-    xl: { latam: 48, consult: 21,  gap: 10,height: 86 },
+    sm: { latam: 22, consult: 10,  gap: 5, height: 40 },
+    md: { latam: 30, consult: 13,  gap: 6, height: 52 },
+    lg: { latam: 42, consult: 18,  gap: 9, height: 78 },
+    xl: { latam: 54, consult: 23,  gap: 11,height: 98 },
   };
   const s = sizes[size] || sizes.md;
-  // Aproximación del ancho del texto LATAM en font-weight 800
   const latamW = s.latam * 3.4;
   const tagW = size === 'sm' ? 0 : tagline ? (size === 'lg' ? 280 : 220) : 0;
   const dividerX = latamW + 18;
@@ -456,22 +456,20 @@ function LatamLogo({ size = 'md', tagline = false }) {
     <svg
       viewBox={`0 0 ${totalW} ${s.height}`}
       width={totalW} height={s.height}
-      style={{ maxWidth: '100%', height: 'auto' }}
+      style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
       role="img" aria-label="LATAM ConsultUs · El valor de ser independiente">
-      {/* LATAM */}
+      {/* LATAM en navy */}
       <text x="0" y={s.latam} fill={NAVY} fontFamily={fontStack} fontWeight="800" fontSize={s.latam}
             style={{ letterSpacing: '-0.01em' }} dominantBaseline="hanging">
         LATAM
       </text>
-      {/* CONSULTUS con tracking */}
-      <text x="0" y={s.latam + s.gap + 2} fill={NAVY} fontFamily={fontStack} fontWeight="500" fontSize={s.consult}
+      {/* CONSULTUS en azul corporativo, con tracking */}
+      <text x="0" y={s.latam + s.gap + 2} fill={ACCENT} fontFamily={fontStack} fontWeight="600" fontSize={s.consult}
             style={{ letterSpacing: s.latam * 0.18 + 'px' }} dominantBaseline="hanging">
         CONSULTUS
       </text>
       {tagline && size !== 'sm' && <>
-        {/* divisor */}
-        <line x1={dividerX} x2={dividerX} y1="3" y2={s.height - 3} stroke={NAVY} strokeWidth="1.2" opacity="0.45" />
-        {/* tagline */}
+        <line x1={dividerX} x2={dividerX} y1="3" y2={s.height - 3} stroke={NAVY} strokeWidth="1.2" opacity="0.40" />
         <text x={dividerX + 18} y={s.latam * 0.55} fill={NAVY} fontFamily={fontStack} fontWeight="400" fontSize={s.latam * 0.42}
               dominantBaseline="hanging">
           El valor de ser

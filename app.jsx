@@ -64,6 +64,45 @@ const deadlineColor = (ts, completed) => {
   return 'text-muted';
 };
 
+/* Días hábiles (skip sábados/domingos). Si hoy es viernes + 1 día hábil → lunes. */
+const isWeekend = (d) => { const w = d.getDay(); return w === 0 || w === 6; };
+const addBusinessDays = (startTs, days) => {
+  const d = new Date(startTs);
+  let added = 0;
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    if (!isWeekend(d)) added++;
+  }
+  // Si el deadline tiene hora pasada en el día, dejarla en hora razonable (fin de día laboral)
+  if (d.getHours() < 9) d.setHours(18, 0, 0, 0);
+  return d.getTime();
+};
+const addBusinessHours = (startTs, hours) => addBusinessDays(startTs, Math.ceil(hours / 24));
+
+const COUNTRY_COLOR = {
+  'Argentina':     { bg: '#dbeafe', text: '#1e40af' },
+  'Brasil':        { bg: '#dcfce7', text: '#166534' },
+  'Chile':         { bg: '#fee2e2', text: '#991b1b' },
+  'Uruguay':       { bg: '#e0e7ff', text: '#3730a3' },
+  'México':        { bg: '#fef3c7', text: '#92400e' },
+  'Mexico':        { bg: '#fef3c7', text: '#92400e' },
+  'Estados Unidos':{ bg: '#f3e8ff', text: '#6b21a8' },
+  'Miami':         { bg: '#f3e8ff', text: '#6b21a8' },
+  'Colombia':      { bg: '#fce7f3', text: '#9d174d' },
+  'Perú':          { bg: '#ffedd5', text: '#9a3412' },
+  'Peru':          { bg: '#ffedd5', text: '#9a3412' },
+  'España':        { bg: '#fee2e2', text: '#991b1b' },
+  'Espana':        { bg: '#fee2e2', text: '#991b1b' },
+  'Panamá':        { bg: '#cffafe', text: '#155e75' },
+  'Panama':        { bg: '#cffafe', text: '#155e75' },
+  'Paraguay':      { bg: '#ecfccb', text: '#3f6212' },
+  'Ecuador':       { bg: '#fef3c7', text: '#854d0e' },
+  'Guatemala':     { bg: '#e0f2fe', text: '#075985' },
+  'Costa Rica':    { bg: '#dcfce7', text: '#14532d' },
+  'Puerto Rico':   { bg: '#fae8ff', text: '#86198f' },
+};
+const countryStyle = (c) => COUNTRY_COLOR[c] || { bg: '#f1f5f9', text: '#475569' };
+
 /* ─────────────────────────────────────────────────────────────────────
    Icons (subset de Lucide, inline SVG)
    ───────────────────────────────────────────────────────────────────── */
@@ -612,34 +651,40 @@ function ConsultoraKanban() {
 
 function KanbanCard({ card, team, onClick }) {
   const analista = team.find(u => u.id === card.analistaId);
-  const dColor = deadlineColor(card.deadline, card.estado === 'done');
   const overdue = card.deadline && card.deadline < now() && card.estado !== 'done';
-  const onDragStart = (e) => {
-    e.dataTransfer.setData('text/plain', card.id);
-    e.currentTarget.classList.add('dragging');
-  };
-  const onDragEnd = (e) => e.currentTarget.classList.remove('dragging');
+  const isDone = card.estado === 'done';
+  const onDragStart = (e) => { e.dataTransfer.setData('text/plain', card.id); e.currentTarget.classList.add('dragging'); };
+  const onDragEnd   = (e) => e.currentTarget.classList.remove('dragging');
   return (
     <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} onClick={onClick}
-         className={`card-lift cursor-grab active:cursor-grabbing p-3 rounded-xl border bg-surface ${overdue ? 'border-bad/40' : 'border-line'}`}>
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="min-w-0">
-          <div className="text-[13px] font-semibold truncate">{card.cliente}</div>
-          <div className="text-[12px] text-ink-2 line-clamp-2">{card.descripcion}</div>
+         className="card-lift card-shadow cursor-grab active:cursor-grabbing rounded-lg border border-line bg-bg overflow-hidden">
+      {/* Color rail según prioridad/estado */}
+      <div className="h-0.5" style={{
+        background: isDone ? '#22c55e' : overdue ? '#E74C3C' : card.prioridad === 'alta' ? '#E74C3C' : card.prioridad === 'media' ? '#FF9500' : '#22c55e'
+      }} />
+      <div className="p-3">
+        <div className="font-semibold text-ink text-[13px] leading-tight mb-1 line-clamp-2">{card.descripcion}</div>
+        <div className="text-[11px] text-ink-2 font-medium mb-2.5">{card.cliente}</div>
+        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+          <PriorityBadge value={card.prioridad} />
+          {overdue && !isDone && <Badge className="bg-bad/10 text-bad border-bad/30"><Icon name="alert" size={10} />Vencido</Badge>}
         </div>
-        <PriorityBadge value={card.prioridad} />
-      </div>
-      <div className="flex items-center justify-between mt-2.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {analista
-            ? <Avatar user={analista} size={20} />
-            : card.aCargo
-              ? <span className="text-[11px] text-muted truncate" title={card.aCargo}>a/c {card.aCargo}</span>
-              : <span className="text-[11px] text-muted">sin asignar</span>}
-        </div>
-        <div className={`flex items-center gap-1 text-[11px] ${dColor} shrink-0`}>
-          <Icon name="clock" size={12} />
-          <span>{fmtTimeLeft(card.deadline)}</span>
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-line">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {analista
+              ? <><Avatar user={analista} size={20} /><span className="text-[11px] text-ink-2 truncate">{analista.name}</span></>
+              : card.aCargo
+                ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-2 text-[10px] text-ink-2 truncate" title={card.aCargo}>
+                    <Icon name="user" size={10} />{card.aCargo}
+                  </span>
+                : <span className="text-[10px] text-muted italic">sin asignar</span>}
+          </div>
+          {card.deadline && (
+            <div className={`flex items-center gap-1 text-[10px] tabular-nums shrink-0 ${isDone ? 'text-muted' : overdue ? 'text-bad font-semibold' : 'text-ink-2'}`}>
+              <Icon name="clock" size={10} />
+              {isDone ? fmtDate(card.completedAt || card.deadline) : fmtTimeLeft(card.deadline)}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -651,7 +696,7 @@ function CardEditor({ open, card, team, isAdmin, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(card || { cliente: '', descripcion: '', analistaId: isAdmin ? '' : team[0]?.id || '', prioridad: 'media', deadline: now() + 2*DAY, estado: 'backlog' });
   useEffect(() => { if (open) setForm(card || { cliente: '', descripcion: '', analistaId: '', prioridad: 'media', deadline: now() + 2*DAY, estado: 'backlog' }); }, [open, card]);
 
-  const setPreset = (h) => setForm(f => ({ ...f, deadline: now() + h*HOUR }));
+  const setPreset = (days) => setForm(f => ({ ...f, deadline: addBusinessDays(now(), days) }));
 
   if (!open) return null;
   return (
@@ -682,12 +727,12 @@ function CardEditor({ open, card, team, isAdmin, onClose, onSave, onDelete }) {
           </select>
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Deadline" hint="Atajos: 24h / 48h / 72h desde ahora">
+          <Field label="Deadline" hint="Atajos en días hábiles (saltan sábados y domingos)">
             <div className="flex gap-2 items-center">
               <input type="datetime-local" value={toInputDateTime(form.deadline)} onChange={e => setForm({ ...form, deadline: fromInputDateTime(e.target.value) })} className="flex-1" />
-              <Btn variant="soft" size="sm" onClick={() => setPreset(24)}>+24h</Btn>
-              <Btn variant="soft" size="sm" onClick={() => setPreset(48)}>+48h</Btn>
-              <Btn variant="soft" size="sm" onClick={() => setPreset(72)}>+72h</Btn>
+              <Btn variant="soft" size="sm" onClick={() => setPreset(1)}>+1d hábil</Btn>
+              <Btn variant="soft" size="sm" onClick={() => setPreset(2)}>+2d</Btn>
+              <Btn variant="soft" size="sm" onClick={() => setPreset(3)}>+3d</Btn>
             </div>
           </Field>
         </div>
@@ -779,10 +824,11 @@ function MonthGrid({ anchor, events, team, onPick }) {
               <div className="space-y-1">
                 {dayEvents.slice(0,3).map(ev => {
                   const a = team.find(u => u.id === ev.analistaId);
+                  const c = a?.color || '#0066CC';
                   return (
                     <button key={ev.id} onClick={() => onPick(ev)}
-                      className="w-full text-left text-[11px] px-1.5 py-1 rounded-md truncate hover:opacity-90"
-                      style={{ background: (a?.color || '#0048FF') + '22', color: '#fff', borderLeft: `3px solid ${a?.color || '#0048FF'}` }}
+                      className="w-full text-left text-[11px] font-medium px-1.5 py-1 rounded truncate hover:brightness-95 transition"
+                      style={{ background: c + '1A', color: c, borderLeft: `3px solid ${c}` }}
                       title={`${ev.cliente} — ${ev.descripcion}`}>
                       {ev.cliente}
                     </button>
@@ -821,13 +867,12 @@ function WeekGrid({ anchor, events, team, onPick }) {
               {dayEvents.length === 0 && <div className="text-[11px] text-muted/60 text-center py-4">—</div>}
               {dayEvents.map(ev => {
                 const a = team.find(u => u.id === ev.analistaId);
+                const c = a?.color || '#0066CC';
                 return (
-                  <button key={ev.id} onClick={() => onPick(ev)} className="w-full text-left p-2 rounded-lg border border-line hover:border-gold/40 bg-surface-2/60">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-2 h-2 rounded-full" style={{ background: a?.color || '#0048FF' }} />
-                      <span className="text-[12px] font-medium truncate">{ev.cliente}</span>
-                    </div>
-                    <div className="text-[11px] text-muted line-clamp-2">{ev.descripcion}</div>
+                  <button key={ev.id} onClick={() => onPick(ev)} className="w-full text-left p-2 rounded-md hover:brightness-95 transition"
+                    style={{ background: c + '12', borderLeft: `3px solid ${c}` }}>
+                    <div className="text-[12px] font-semibold truncate" style={{ color: c }}>{ev.cliente}</div>
+                    <div className="text-[11px] text-ink-2 line-clamp-2 mt-0.5">{ev.descripcion}</div>
                     <div className="text-[10px] text-muted mt-1">{fmtDateTime(ev.deadline)}</div>
                   </button>
                 );
@@ -1417,21 +1462,42 @@ function MaximusProspects() {
 
 function ProspectCard({ p, onClick }) {
   const onDragStart = (e) => { e.dataTransfer.setData('text/plain', p.id); e.currentTarget.classList.add('dragging'); };
-  const onDragEnd = (e) => e.currentTarget.classList.remove('dragging');
+  const onDragEnd   = (e) => e.currentTarget.classList.remove('dragging');
+  const pais = p.pais || p.country;
   return (
     <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} onClick={onClick}
-         className="card-lift cursor-grab active:cursor-grabbing p-3 rounded-xl border border-line bg-surface">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[13px] font-semibold truncate">{p.empresa}</div>
-          <div className="text-[11px] text-muted truncate">{p.contacto}</div>
+         className="card-lift card-shadow cursor-grab active:cursor-grabbing rounded-lg border border-line bg-bg overflow-hidden">
+      <div className="h-0.5 bg-gold" />
+      <div className="p-3">
+        <div className="font-semibold text-ink text-[13px] leading-tight line-clamp-2 mb-1">{p.empresa}</div>
+        {p.contacto && (
+          <div className="flex items-center gap-1 text-[11px] text-ink-2 mb-2.5">
+            <Icon name="user" size={11} />
+            <span className="truncate">{p.contacto}</span>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+          {pais && (() => {
+            const c = countryStyle(pais);
+            return <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium border" style={{ background: c.bg, color: c.text, borderColor: c.text + '33' }}>{pais}</span>;
+          })()}
+          {p.clienteCompartido && (
+            <Badge className="bg-gold/10 text-gold border-gold/30"><Icon name="link" size={10} />{p.clienteCompartido}</Badge>
+          )}
         </div>
-        {p.clienteCompartido && <Badge className="bg-gold/15 text-gold border-gold/30"><Icon name="link" size={10} />{p.clienteCompartido}</Badge>}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-line">
+          {p.jiraKey ? (
+            <span className="text-[10px] text-muted font-mono tracking-tight">{p.jiraKey}</span>
+          ) : (
+            <span className="text-[10px] text-muted">{p.producto || ''}</span>
+          )}
+          {p.proxSeguimiento && (
+            <div className="flex items-center gap-1 text-[10px] text-ink-2 tabular-nums">
+              <Icon name="clock" size={10} />{fmtDate(p.proxSeguimiento)}
+            </div>
+          )}
+        </div>
       </div>
-      <div className="mt-2 text-[12px] text-ink-2 line-clamp-2">{p.producto}</div>
-      {p.proxSeguimiento && (
-        <div className="mt-2 flex items-center gap-1 text-[11px] text-muted"><Icon name="clock" size={11} />Próx: {fmtDate(p.proxSeguimiento)}</div>
-      )}
     </div>
   );
 }

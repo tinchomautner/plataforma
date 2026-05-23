@@ -103,6 +103,26 @@ const COUNTRY_COLOR = {
 };
 const countryStyle = (c) => COUNTRY_COLOR[c] || { bg: '#f1f5f9', text: '#475569' };
 
+/* Inferencia de instrumento desde el texto del pedido. */
+const INSTRUMENTOS = ['Ports','Bonos','Acciones','Fondos','ETF','Alts','Otros'];
+const INSTR_COLORS = {
+  Ports:'#0066CC', Bonos:'#0EA5E9', Acciones:'#22C55E',
+  Fondos:'#A855F7', ETF:'#F59E0B', Alts:'#EC4899', Otros:'#64748B',
+};
+const getInstrumento = (card) => {
+  const t = `${card.descripcion || ''} ${card.aCargo || ''}`.toLowerCase();
+  if (/\bport(s|afolio|folios)?\b|port\d|portafolio/i.test(t) || /\bports\b/.test(t)) return 'Ports';
+  if (/\bbono|\bbonds?\b|renta fija|rf\b/i.test(t)) return 'Bonos';
+  if (/\baccio?n|equity|equities|stock|shares/i.test(t)) return 'Acciones';
+  if (/\bfondo|mutual fund|fondos|fund\b/i.test(t)) return 'Fondos';
+  if (/\betf|exchange traded/i.test(t)) return 'ETF';
+  if (/\balt(s|ernativ)|hedge|private/i.test(t)) return 'Alts';
+  return 'Otros';
+};
+const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const monthKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+const monthLabel = (ts) => { const d = new Date(ts); return `${MONTHS_ES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; };
+
 /* ─────────────────────────────────────────────────────────────────────
    Icons (subset de Lucide, inline SVG)
    ───────────────────────────────────────────────────────────────────── */
@@ -933,6 +953,7 @@ function CardDetail({ card, team }) {
    ───────────────────────────────────────────────────────────────────── */
 function ConsultoraMetrics() {
   const { state } = useApp();
+  const [tab, setTab] = useState('productividad'); // productividad | analisis
   const [period, setPeriod] = useState('semana'); // dia | semana | mes | 90d | year | custom
   const [customFrom, setCustomFrom] = useState(() => new Date(now() - 30*DAY).toISOString().slice(0,10));
   const [customTo,   setCustomTo]   = useState(() => new Date(now()).toISOString().slice(0,10));
@@ -988,18 +1009,21 @@ function ConsultoraMetrics() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Métricas de Consultora"
-        subtitle={`Indicadores de productividad del equipo · ${range.label}`}
+        subtitle={tab === 'productividad' ? `Productividad del equipo · ${range.label}` : 'Análisis de pedidos · histórico completo'}
         actions={<>
           <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
-            {[
-              ['dia','24h'],['semana','7d'],['mes','30d'],
-              ['90d','90d'],['year','Año'],['custom','Custom'],
-            ].map(([p,label]) => (
-              <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs rounded-md ${period === p ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
-            ))}
+            <button onClick={() => setTab('productividad')} className={`px-3 py-1.5 text-xs rounded-md ${tab==='productividad' ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>Productividad</button>
+            <button onClick={() => setTab('analisis')}      className={`px-3 py-1.5 text-xs rounded-md ${tab==='analisis'      ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>Análisis pedidos</button>
           </div>
-          {period === 'custom' && (
+          {tab === 'productividad' && (
+            <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+              {[['dia','24h'],['semana','7d'],['mes','30d'],['90d','90d'],['year','Año'],['custom','Custom']].map(([p,label]) => (
+                <button key={p} onClick={() => setPeriod(p)}
+                  className={`px-3 py-1.5 text-xs rounded-md ${period === p ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
+              ))}
+            </div>
+          )}
+          {tab === 'productividad' && period === 'custom' && (
             <div className="flex items-center gap-1.5">
               <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 140 }} />
               <span className="text-muted text-xs">→</span>
@@ -1009,7 +1033,8 @@ function ConsultoraMetrics() {
         </>}
       />
 
-      <div className="px-6 pb-6 flex-1 overflow-y-auto space-y-5">
+      <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto space-y-5">
+        {tab === 'productividad' && <>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard title="Tarjetas completadas" value={totalCompleted} hint={range.label} />
           <StatCard title="Tiempo promedio" value={`${avgHoursOverall}h`} hint="Desde creación hasta done" />
@@ -1088,8 +1113,231 @@ function ConsultoraMetrics() {
             </table>
           </div>
         </Panel>
+        </>}
+
+        {tab === 'analisis' && <AnalisisPedidos cards={cards} />}
       </div>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   ANÁLISIS DE PEDIDOS (estilo PPT informe interno)
+   ───────────────────────────────────────────────────────────────────── */
+function AnalisisPedidos({ cards }) {
+  const data = useMemo(() => {
+    // Usar la fecha de creación como anclaje del pedido
+    const withDate = cards.filter(c => c.createdAt);
+    const totalPedidos = withDate.length;
+    const clientesUnicos = new Set(withDate.map(c => c.cliente)).size;
+
+    // Per mes
+    const byMonth = {};
+    withDate.forEach(c => {
+      const k = monthKey(c.createdAt);
+      if (!byMonth[k]) byMonth[k] = { key: k, label: monthLabel(c.createdAt), total: 0, byInstr: {} };
+      byMonth[k].total++;
+      const instr = getInstrumento(c);
+      byMonth[k].byInstr[instr] = (byMonth[k].byInstr[instr] || 0) + 1;
+    });
+    const months = Object.values(byMonth).sort((a,b) => a.key.localeCompare(b.key));
+    const pico = months.reduce((m, x) => x.total > (m?.total || 0) ? x : m, null);
+    const piso = months.reduce((m, x) => (!m || x.total < m.total) ? x : m, null);
+    const promMensual = months.length ? Math.round(totalPedidos / months.length * 10) / 10 : 0;
+
+    // Por instrumento
+    const byInstr = {};
+    INSTRUMENTOS.forEach(i => { byInstr[i] = { instr: i, total: 0, byCliente: {} }; });
+    withDate.forEach(c => {
+      const i = getInstrumento(c);
+      byInstr[i].total++;
+      byInstr[i].byCliente[c.cliente] = (byInstr[i].byCliente[c.cliente] || 0) + 1;
+    });
+
+    // Top clientes overall
+    const clientCount = {};
+    withDate.forEach(c => { clientCount[c.cliente] = (clientCount[c.cliente] || 0) + 1; });
+    const topClientes = Object.entries(clientCount).map(([cliente,n]) => ({ cliente, n, pct: n/totalPedidos*100 })).sort((a,b) => b.n - a.n).slice(0, 10);
+    const top5pct = topClientes.slice(0,5).reduce((s,c) => s + c.n, 0) / Math.max(1,totalPedidos) * 100;
+
+    return { totalPedidos, clientesUnicos, promMensual, months, pico, piso, byInstr, topClientes, top5pct };
+  }, [cards]);
+
+  if (data.totalPedidos === 0) return <EmptyState title="Sin pedidos para analizar" hint="Cargá pedidos en el Kanban para ver el análisis." />;
+
+  const maxMonth = Math.max(...data.months.map(m => m.total), 1);
+  const maxInstr = Math.max(...INSTRUMENTOS.map(i => data.byInstr[i].total), 1);
+
+  return (
+    <>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard title="Pedidos totales"  value={data.totalPedidos} />
+        <StatCard title="Clientes activos" value={data.clientesUnicos} />
+        <StatCard title="Pedidos / mes"    value={data.promMensual} hint="promedio" />
+        <StatCard title="Meses cubiertos"  value={data.months.length} />
+      </div>
+
+      {/* Distribución por instrumento (bar chart horizontal) */}
+      <Panel title="Distribución por tipo de instrumento">
+        <div className="space-y-2">
+          {INSTRUMENTOS.filter(i => data.byInstr[i].total > 0).sort((a,b) => data.byInstr[b].total - data.byInstr[a].total).map(i => {
+            const n = data.byInstr[i].total;
+            const pct = n / data.totalPedidos * 100;
+            return (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-20 text-xs text-ink-2 shrink-0">{i}</div>
+                <div className="flex-1 h-6 bg-surface-2 rounded overflow-hidden relative">
+                  <div className="h-full transition-all" style={{ width: `${(n/maxInstr)*100}%`, background: INSTR_COLORS[i] }} />
+                </div>
+                <div className="w-28 text-right text-xs tabular-nums text-ink-2 shrink-0">
+                  <span className="font-semibold text-ink">{n}</span>
+                  <span className="text-muted"> · {pct.toFixed(1)}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+
+      {/* Evolución mensual + pico/piso */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Panel title="Evolución de pedidos por mes" className="lg:col-span-2">
+          <div className="h-56 relative">
+            <svg viewBox={`0 0 ${data.months.length * 50} 200`} preserveAspectRatio="none" className="w-full h-full">
+              {/* gridlines */}
+              {[0, 0.25, 0.5, 0.75, 1].map(p => (
+                <line key={p} x1="0" x2={data.months.length * 50} y1={200 - p * 180 - 10} y2={200 - p * 180 - 10} stroke="rgba(15,37,64,0.08)" strokeWidth="1" />
+              ))}
+              {/* line path */}
+              <polyline fill="none" stroke="#0066CC" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                points={data.months.map((m, i) => `${i * 50 + 25},${200 - (m.total / maxMonth) * 180 - 10}`).join(' ')} />
+              {/* area fill */}
+              <polygon fill="rgba(0,102,204,0.10)"
+                points={`0,200 ${data.months.map((m, i) => `${i * 50 + 25},${200 - (m.total / maxMonth) * 180 - 10}`).join(' ')} ${data.months.length * 50},200`} />
+              {/* dots */}
+              {data.months.map((m, i) => (
+                <circle key={i} cx={i * 50 + 25} cy={200 - (m.total / maxMonth) * 180 - 10} r="3" fill="#0066CC" vectorEffect="non-scaling-stroke">
+                  <title>{m.label}: {m.total} pedidos</title>
+                </circle>
+              ))}
+            </svg>
+          </div>
+          <div className="flex justify-between text-[10px] text-muted mt-1 px-1 tabular-nums">
+            {data.months.map((m, i) => {
+              const show = data.months.length <= 12 || i % Math.ceil(data.months.length / 8) === 0;
+              return <span key={i} className="flex-1 text-center">{show ? m.label : ''}</span>;
+            })}
+          </div>
+        </Panel>
+
+        <div className="space-y-3">
+          <div className="bg-bg-2 border border-line rounded-lg p-4">
+            <div className="text-[10px] uppercase tracking-wider text-muted">Pico</div>
+            <div className="text-xl font-semibold text-ink mt-1">{data.pico?.label}</div>
+            <div className="text-sm text-ok mt-0.5">{data.pico?.total} pedidos</div>
+          </div>
+          <div className="bg-bg-2 border border-line rounded-lg p-4">
+            <div className="text-[10px] uppercase tracking-wider text-muted">Piso</div>
+            <div className="text-xl font-semibold text-ink mt-1">{data.piso?.label}</div>
+            <div className="text-sm text-warn mt-0.5">{data.piso?.total} pedidos</div>
+          </div>
+          <div className="bg-bg-2 border border-line rounded-lg p-4">
+            <div className="text-[10px] uppercase tracking-wider text-muted">Top 5 clientes</div>
+            <div className="text-xl font-semibold text-gold mt-1">{data.top5pct.toFixed(0)}%</div>
+            <div className="text-[11px] text-muted mt-0.5">del flujo total</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top 10 clientes */}
+      <Panel title="Top 10 clientes por volumen">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+              <tr><th className="py-2 pr-2 w-8">#</th><th className="pr-2">Cliente</th><th className="text-right pr-2">Pedidos</th><th className="text-right pr-2">% total</th><th className="pl-2">Barra</th></tr>
+            </thead>
+            <tbody>
+              {data.topClientes.map((c, i) => (
+                <tr key={c.cliente} className="border-t border-line">
+                  <td className="py-2 pr-2 text-muted tabular-nums">{i+1}</td>
+                  <td className="pr-2 font-medium text-ink">{c.cliente}</td>
+                  <td className="text-right pr-2 tabular-nums">{c.n}</td>
+                  <td className="text-right pr-2 tabular-nums text-ink-2">{c.pct.toFixed(1)}%</td>
+                  <td className="pl-2">
+                    <div className="h-2 bg-surface-2 rounded overflow-hidden">
+                      <div className="h-full bg-gold" style={{ width: `${(c.n / data.topClientes[0].n) * 100}%` }} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      {/* Top clientes por instrumento (5 paneles compactos) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {INSTRUMENTOS.filter(i => data.byInstr[i].total > 0).map(i => {
+          const block = data.byInstr[i];
+          const top = Object.entries(block.byCliente).map(([cl,n]) => ({ cl, n, pct: n/block.total*100 })).sort((a,b) => b.n - a.n).slice(0, 5);
+          return (
+            <Panel key={i} title={
+              <span className="inline-flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ background: INSTR_COLORS[i] }} />
+                {i}
+              </span>
+            }>
+              <div className="flex items-baseline gap-2 mb-3">
+                <div className="text-2xl font-bold tabular-nums" style={{ color: INSTR_COLORS[i] }}>{block.total}</div>
+                <div className="text-[11px] text-muted">{(block.total/data.totalPedidos*100).toFixed(1)}% del flujo</div>
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-muted mb-1.5">Top clientes</div>
+              <div className="space-y-1.5">
+                {top.map(t => (
+                  <div key={t.cl} className="flex items-center justify-between text-xs">
+                    <span className="truncate text-ink">{t.cl}</span>
+                    <span className="tabular-nums text-ink-2 shrink-0 ml-2">{t.n} · {t.pct.toFixed(0)}%</span>
+                  </div>
+                ))}
+                {top.length === 0 && <div className="text-[11px] text-muted italic">Sin datos</div>}
+              </div>
+            </Panel>
+          );
+        })}
+      </div>
+
+      {/* Matriz mes × instrumento */}
+      <Panel title="Matriz mes × instrumento">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+              <tr>
+                <th className="py-2 pr-2">Mes</th>
+                {INSTRUMENTOS.map(i => (
+                  <th key={i} className="text-right pr-2"><span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: INSTR_COLORS[i] }} />{i}</span></th>
+                ))}
+                <th className="text-right pr-2 font-semibold">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.months.map(m => (
+                <tr key={m.key} className="border-t border-line">
+                  <td className="py-2 pr-2 font-medium text-ink">{m.label}</td>
+                  {INSTRUMENTOS.map(i => <td key={i} className="text-right pr-2 tabular-nums text-ink-2">{m.byInstr[i] || 0}</td>)}
+                  <td className="text-right pr-2 tabular-nums font-semibold text-ink">{m.total}</td>
+                </tr>
+              ))}
+              <tr className="border-t-2 border-line-2 font-semibold bg-surface">
+                <td className="py-2 pr-2">TOTAL</td>
+                {INSTRUMENTOS.map(i => <td key={i} className="text-right pr-2 tabular-nums">{data.byInstr[i].total}</td>)}
+                <td className="text-right pr-2 tabular-nums text-gold">{data.totalPedidos}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </>
   );
 }
 
@@ -1103,9 +1351,9 @@ function StatCard({ title, value, hint }) {
   );
 }
 
-function Panel({ title, children, action }) {
+function Panel({ title, children, action, className = '' }) {
   return (
-    <div className="bg-bg-2/60 border border-line rounded-2xl p-4">
+    <div className={`bg-bg-2/60 border border-line rounded-2xl p-4 ${className}`}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold">{title}</h3>
         {action}

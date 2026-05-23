@@ -76,19 +76,13 @@
 <body class="bg-bg text-ink antialiased">
   <div id="root"></div>
 
-  <!--
-    Para activar sincronización con el equipo (Supabase), descomentar y rellenar
-    con la URL y anon key del proyecto:
-
-    <script>
-      window.SUPABASE_CFG = {
-        url: 'https://XXXXXXXX.supabase.co',
-        anonKey: 'eyJhbGciOi...'
-      };
-    </script>
-
-    Si SUPABASE_CFG NO está, la app usa localStorage (cada uno ve sus datos).
-  -->
+  <!-- Supabase sync ACTIVO. Si querés volver a localStorage solo, comentá este bloque. -->
+  <script>
+    window.SUPABASE_CFG = {
+      url: 'https://eeqyechikbtuhosmhkgl.supabase.co',
+      anonKey: 'sb_publishable_5fiUvjFil5Lm5giS6oLqeg_BWiDkqfH'
+    };
+  </script>
   <script src="./seed-clients.js"></script>
   <script src="./seed-pendings.js"></script>
   <script src="./seed-prospects.js"></script>

@@ -1057,31 +1057,59 @@ function ConsultoraMetrics() {
           <Panel title={bucketDays === 1 ? 'Tarjetas completadas por día' : bucketDays === 7 ? 'Tarjetas completadas por semana' : 'Tarjetas completadas por mes'}>
             {series.every(s => s.n === 0) ? <EmptyState title="Sin completas en el período" hint="Mové tarjetas a Listo para ver datos acá." /> : (
               <div>
-                <div className="flex items-end gap-1.5 h-56 px-1 border-b border-line pb-1">
-                  {series.map((s, i) => (
-                    <div key={i} className="flex-1 flex flex-col justify-end items-center min-w-0 group relative">
-                      {s.n > 0 && <div className="absolute -top-5 text-[10px] tabular-nums text-ink font-semibold opacity-0 group-hover:opacity-100 transition pointer-events-none">{s.n}</div>}
-                      <div className="w-full rounded-t-md transition"
-                           style={{
-                             height: `${Math.max(s.n/maxN*100, s.n > 0 ? 8 : 0)}%`,
-                             background: s.n > 0 ? '#0066CC' : 'transparent',
-                             minHeight: s.n > 0 ? 6 : 0,
-                           }}
-                           title={`${s.label}: ${s.n}`} />
+                <div className="flex gap-2" style={{ height: 220 }}>
+                  {/* Eje Y */}
+                  <div className="flex flex-col justify-between text-[10px] text-muted tabular-nums pr-1 py-0" style={{ minWidth: 22 }}>
+                    <span>{maxN}</span>
+                    <span>{Math.round(maxN * 2 / 3)}</span>
+                    <span>{Math.round(maxN / 3)}</span>
+                    <span>0</span>
+                  </div>
+                  {/* Área del chart */}
+                  <div className="flex-1 relative">
+                    {/* Líneas de grid */}
+                    {[0, 1, 2, 3].map(i => (
+                      <div key={i} className="absolute left-0 right-0 border-t border-line/60" style={{ top: `${i * 33.33}%` }} />
+                    ))}
+                    {/* Barras */}
+                    <div className="absolute inset-0 flex items-stretch gap-1.5 px-1">
+                      {series.map((s, i) => {
+                        const pct = (s.n / maxN) * 100;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col justify-end items-center min-w-0 group relative">
+                            {s.n > 0 && (
+                              <div className="absolute text-[10px] tabular-nums text-ink font-semibold pointer-events-none"
+                                   style={{ bottom: `calc(${pct}% + 2px)` }}>
+                                {s.n}
+                              </div>
+                            )}
+                            <div className="w-full rounded-t-md transition-all hover:brightness-110"
+                                 style={{
+                                   height: s.n > 0 ? `${pct}%` : 0,
+                                   minHeight: s.n > 0 ? 8 : 0,
+                                   background: s.n > 0 ? '#0066CC' : 'transparent',
+                                 }}
+                                 title={`${s.label}: ${s.n}`} />
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
                 </div>
-                <div className="flex gap-1.5 px-1 mt-1.5">
+                {/* Labels del eje X */}
+                <div className="flex gap-1.5 px-1 mt-2" style={{ marginLeft: 30 }}>
                   {series.map((s, i) => {
                     const show = buckets <= 12 || i % Math.ceil(buckets / 8) === 0;
                     return (
-                      <div key={i} className="flex-1 text-[9px] text-muted text-center tabular-nums truncate">
+                      <div key={i} className="flex-1 text-[10px] text-muted text-center tabular-nums truncate">
                         {show ? s.label : ''}
                       </div>
                     );
                   })}
                 </div>
-                <div className="text-[10px] text-muted text-center mt-2">Máximo: {maxN} · Total: {series.reduce((a,b) => a + b.n, 0)}</div>
+                <div className="text-[10px] text-muted text-center mt-3 pt-2 border-t border-line">
+                  Total del período: <b className="text-ink">{series.reduce((a,b) => a + b.n, 0)}</b> · Día con más: <b className="text-ink">{maxN}</b>
+                </div>
               </div>
             )}
           </Panel>

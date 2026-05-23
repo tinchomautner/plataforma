@@ -158,16 +158,16 @@ const PRIORIDADES = [
 ];
 
 const seedConsultora = () => {
-  const t = now();
-  return [
-    { id: uid(), cliente: 'Banco Macro',  descripcion: 'Análisis de bonos corporativos LATAM',        analistaId: 'u-ma', prioridad: 'alta',  deadline: t + 1.2*DAY, estado: 'in_progress', createdAt: t - 0.4*DAY, completedAt: null },
-    { id: uid(), cliente: 'Comafi',       descripcion: 'Watchlist ETFs sector tech',                  analistaId: 'u-pm', prioridad: 'media', deadline: t + 2.1*DAY, estado: 'backlog',     createdAt: t - 0.1*DAY, completedAt: null },
-    { id: uid(), cliente: 'Banco Galicia',descripcion: 'Propuesta de cartera 60/40',                  analistaId: 'u-da', prioridad: 'media', deadline: t + 0.3*DAY, estado: 'in_review',   createdAt: t - 2.0*DAY, completedAt: null },
-    { id: uid(), cliente: 'Global Securities', descripcion: 'Análisis nota estructurada autocall',    analistaId: 'u-em', prioridad: 'alta',  deadline: t - 0.2*DAY, estado: 'in_progress', createdAt: t - 3.0*DAY, completedAt: null },
-    { id: uid(), cliente: 'Banco Macro',  descripcion: 'Informe mensual renta fija',                  analistaId: 'u-ma', prioridad: 'baja',  deadline: t - 5*DAY,   estado: 'done',        createdAt: t - 7*DAY,   completedAt: t - 4*DAY },
-    { id: uid(), cliente: 'Pampa',        descripcion: 'Consolidado multi-cuenta',                    analistaId: 'u-mn', prioridad: 'media', deadline: t - 3*DAY,   estado: 'done',        createdAt: t - 6*DAY,   completedAt: t - 2*DAY },
-    { id: uid(), cliente: 'Premium',      descripcion: 'Análisis QTUM vs QQQ',                        analistaId: 'u-vr', prioridad: 'baja',  deadline: t - 12*DAY,  estado: 'done',        createdAt: t - 16*DAY,  completedAt: t - 10*DAY },
-  ];
+  const arr = (typeof window !== 'undefined' && window.SEED_PENDINGS) || [];
+  return arr.slice();
+};
+
+/* Regla auto-archive: si la card tiene > 7 días desde createdAt, queda fuera del Kanban por default.
+   No se elimina ni se cambia su estado: solo se oculta. Métricas y archivo siguen viéndola. */
+const ARCHIVE_DAYS = 7;
+const isArchived = (card) => {
+  if (!card.createdAt) return false;
+  return (now() - card.createdAt) > ARCHIVE_DAYS * DAY;
 };
 
 const seedClients = () => {
@@ -467,15 +467,19 @@ function ConsultoraKanban() {
   const [creating, setCreating] = useState(false);
   const [filterAnalista, setFilterAnalista] = useState('');
   const [search, setSearch] = useState('');
-  const isAdmin = me.role === 'Admin';
+  const [showArchived, setShowArchived] = useState(false);
+  const isAdmin = me.role === 'Admin' || me.role.includes('Admin');
+
+  const archivedCount = useMemo(() => cards.filter(isArchived).length, [cards]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
     return cards.filter(c =>
+      (showArchived || !isArchived(c)) &&
       (!filterAnalista || c.analistaId === filterAnalista) &&
-      (!s || `${c.cliente} ${c.descripcion}`.toLowerCase().includes(s))
+      (!s || `${c.cliente} ${c.descripcion} ${c.aCargo || ''}`.toLowerCase().includes(s))
     );
-  }, [cards, search, filterAnalista]);
+  }, [cards, search, filterAnalista, showArchived]);
 
   const byCol = useMemo(() => {
     const m = Object.fromEntries(CONSULTORA_COLS.map(c => [c.id, []]));
@@ -493,17 +497,20 @@ function ConsultoraKanban() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Pedidos de clientes"
-        subtitle="Tablero compartido del equipo de Consultora. Arrastrá las tarjetas entre columnas."
+        subtitle={`Activos de los últimos ${ARCHIVE_DAYS} días. ${archivedCount > 0 ? `${archivedCount} en histórico.` : ''}`}
         actions={<>
           <div className="relative">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente o pedido…"
-              className="!pl-8 !py-2 !text-sm" style={{ width: 240 }} />
+              className="!pl-8 !py-2 !text-sm" style={{ width: 220 }} />
           </div>
-          <select value={filterAnalista} onChange={e => setFilterAnalista(e.target.value)} className="!py-2 !text-sm" style={{ width: 180 }}>
+          <select value={filterAnalista} onChange={e => setFilterAnalista(e.target.value)} className="!py-2 !text-sm" style={{ width: 170 }}>
             <option value="">Todos los analistas</option>
             {team.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
+          <Btn variant={showArchived ? 'primary' : 'soft'} size="md" onClick={() => setShowArchived(s => !s)} title={`${archivedCount} pendings con +${ARCHIVE_DAYS}d`}>
+            <Icon name="clock" size={14} />{showArchived ? 'Ocultando histórico' : `Ver histórico (${archivedCount})`}
+          </Btn>
           <Btn onClick={() => setCreating(true)}><Icon name="plus" size={16} />Nuevo pedido</Btn>
         </>}
       />
@@ -566,10 +573,14 @@ function KanbanCard({ card, team, onClick }) {
         <PriorityBadge value={card.prioridad} />
       </div>
       <div className="flex items-center justify-between mt-2.5">
-        <div className="flex items-center gap-1.5">
-          {analista ? <Avatar user={analista} size={20} /> : <span className="text-[11px] text-muted">sin asignar</span>}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {analista
+            ? <Avatar user={analista} size={20} />
+            : card.aCargo
+              ? <span className="text-[11px] text-muted truncate" title={card.aCargo}>a/c {card.aCargo}</span>
+              : <span className="text-[11px] text-muted">sin asignar</span>}
         </div>
-        <div className={`flex items-center gap-1 text-[11px] ${dColor}`}>
+        <div className={`flex items-center gap-1 text-[11px] ${dColor} shrink-0`}>
           <Icon name="clock" size={12} />
           <span>{fmtTimeLeft(card.deadline)}</span>
         </div>
@@ -602,9 +613,9 @@ function CardEditor({ open, card, team, isAdmin, onClose, onSave, onDelete }) {
             <textarea rows={3} value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} placeholder="Detalle del pedido…" />
           </Field>
         </div>
-        <Field label="Analista asignado">
-          <select value={form.analistaId} onChange={e => setForm({ ...form, analistaId: e.target.value })}>
-            <option value="">Sin asignar</option>
+        <Field label="Analista asignado" hint={form.aCargo && !form.analistaId ? `Originalmente a/c: ${form.aCargo}` : null}>
+          <select value={form.analistaId || ''} onChange={e => setForm({ ...form, analistaId: e.target.value })}>
+            <option value="">Sin asignar{form.aCargo ? ` (a/c ${form.aCargo})` : ''}</option>
             {team.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
         </Field>

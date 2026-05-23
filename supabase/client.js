@@ -39,12 +39,14 @@
     /* Mappers: server row → client object (camelCase para id refs en consultora_cards) */
     const mapCard = (r) => ({
       id: r.id, cliente: r.cliente, descripcion: r.descripcion, analistaId: r.analista_id,
+      aCargo: r.a_cargo || '', comentariosTexto: r.comentarios || '',
       prioridad: r.prioridad, deadline: r.deadline ? new Date(r.deadline).getTime() : null,
       estado: r.estado, createdAt: r.created_at ? new Date(r.created_at).getTime() : null,
       completedAt: r.completed_at ? new Date(r.completed_at).getTime() : null,
     });
     const mapCardOut = (c) => ({
       id: c.id, cliente: c.cliente, descripcion: c.descripcion ?? '', analista_id: c.analistaId || null,
+      a_cargo: c.aCargo || '', comentarios: c.comentariosTexto || '',
       prioridad: c.prioridad, deadline: c.deadline ? new Date(c.deadline).toISOString() : null,
       estado: c.estado, created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
       completed_at: c.completedAt ? new Date(c.completedAt).toISOString() : null,

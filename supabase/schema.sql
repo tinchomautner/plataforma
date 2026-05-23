@@ -22,11 +22,13 @@ create table if not exists public.consultora_cards (
   cliente       text not null,
   descripcion   text default '',
   analista_id   text references public.team(id),
+  a_cargo       text default '',
   prioridad     text not null default 'media',
   deadline      timestamptz,
   estado        text not null default 'backlog',
   created_at    timestamptz not null default now(),
-  completed_at  timestamptz
+  completed_at  timestamptz,
+  comentarios   text default ''
 );
 create index if not exists idx_consultora_estado on public.consultora_cards(estado);
 create index if not exists idx_consultora_analista on public.consultora_cards(analista_id);

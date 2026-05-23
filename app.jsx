@@ -159,16 +159,16 @@ function Icon({ name, size = 18, className = '', stroke = 'currentColor' }) {
    La password es solo barrera de entrada en uso interno — los analistas pueden
    cambiarla en su perfil. Para auth real usamos Supabase Auth (magic link). */
 const TEAM_SEED = [
-  { id: 'u-mm', username: 'mautner',  password: 'Martin2026',    perms: 'admin',      name: 'Martín Mautner',   initials: 'MM', role: 'Admin',              units: ['consultora','maximus'], color: '#0066CC' },
-  { id: 'u-sh', username: 'dehaedo',  password: 'Santiago2026',  perms: 'admin',      name: 'Santiago de Haedo',initials: 'SH', role: 'Admin',              units: ['consultora','maximus'], color: '#004C99' },
-  { id: 'u-ma', username: 'mati',     password: 'Mati2026',      perms: 'consultora', name: 'Matías Acevedo',   initials: 'MA', role: 'Analista Consultora',units: ['consultora'],           color: '#3b82f6' },
-  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora', name: 'Pablo Machado',    initials: 'PM', role: 'Analista Consultora',units: ['consultora'],           color: '#14b8a6' },
-  { id: 'u-da', username: 'debo',     password: 'Debo2026',      perms: 'consultora', name: 'Deborah Amatti',   initials: 'DA', role: 'Analista Consultora',units: ['consultora'],           color: '#ec4899' },
-  { id: 'u-em', username: 'emeterio', password: 'Emeterio2026',  perms: 'consultora', name: 'Emeterio Morales', initials: 'EM', role: 'Analista Consultora',units: ['consultora'],           color: '#a855f7' },
-  { id: 'u-mn', username: 'nogues',   password: 'Nogues2026',    perms: 'consultora', name: 'Martín Nogués',    initials: 'MN', role: 'Analista Consultora',units: ['consultora'],           color: '#f97316' },
-  { id: 'u-vr', username: 'vero',     password: 'Vero2026',      perms: 'consultora', name: 'Verónica Rey',     initials: 'VR', role: 'Analista Consultora',units: ['consultora'],           color: '#06b6d4' },
-  { id: 'u-fh', username: 'hazan',    password: 'Federico2026',  perms: 'maximus',    name: 'Federico Hazan',   initials: 'FH', role: 'MaximUs',            units: ['maximus'],              color: '#22c55e' },
-  { id: 'u-ax', username: 'araujo',   password: 'Max2026',       perms: 'maximus',    name: 'Max Araujo',       initials: 'MX', role: 'MaximUs',            units: ['maximus'],              color: '#eab308' },
+  { id: 'u-mm', username: 'mautner',  password: 'Martin2026',    perms: 'admin',      nonAssignable: true,  name: 'Martín Mautner',   initials: 'MM', role: 'Admin',              units: ['consultora','maximus'], color: '#0066CC' },
+  { id: 'u-sh', username: 'dehaedo',  password: 'Santiago2026',  perms: 'admin',      nonAssignable: true,  name: 'Santiago de Haedo',initials: 'SH', role: 'Admin',              units: ['consultora','maximus'], color: '#004C99' },
+  { id: 'u-ma', username: 'mati',     password: 'Mati2026',      perms: 'consultora',                       name: 'Matías Acevedo',   initials: 'MA', role: 'Analista Consultora',units: ['consultora'],           color: '#3b82f6' },
+  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora',                       name: 'Pablo Machado',    initials: 'PM', role: 'Analista Consultora',units: ['consultora'],           color: '#14b8a6' },
+  { id: 'u-da', username: 'debo',     password: 'Debo2026',      perms: 'consultora',                       name: 'Deborah Amatti',   initials: 'DA', role: 'Analista Consultora',units: ['consultora'],           color: '#ec4899' },
+  { id: 'u-em', username: 'emeterio', password: 'Emeterio2026',  perms: 'consultora',                       name: 'Emeterio Morales', initials: 'EM', role: 'Analista Consultora',units: ['consultora'],           color: '#a855f7' },
+  { id: 'u-mn', username: 'nogues',   password: 'Nogues2026',    perms: 'consultora',                       name: 'Martín Nogués',    initials: 'MN', role: 'Analista Consultora',units: ['consultora'],           color: '#f97316' },
+  { id: 'u-vr', username: 'vero',     password: 'Vero2026',      perms: 'consultora', nonAssignable: true,  name: 'Verónica Rey',     initials: 'VR', role: 'Analista Consultora',units: ['consultora'],           color: '#06b6d4' },
+  { id: 'u-fh', username: 'hazan',    password: 'Federico2026',  perms: 'maximus',                          name: 'Federico Hazan',   initials: 'FH', role: 'MaximUs',            units: ['maximus'],              color: '#22c55e' },
+  { id: 'u-ax', username: 'araujo',   password: 'Max2026',       perms: 'maximus',                          name: 'Max Araujo',       initials: 'MX', role: 'MaximUs',            units: ['maximus'],              color: '#eab308' },
 ];
 
 /* Reglas de permisos por route */
@@ -221,12 +221,20 @@ const seedConsultora = () => {
   return arr.slice();
 };
 
-/* Regla auto-archive: si la card tiene > 7 días desde createdAt, queda fuera del Kanban por default.
-   No se elimina ni se cambia su estado: solo se oculta. Métricas y archivo siguen viéndola. */
-const ARCHIVE_DAYS = 7;
+/* Regla auto-archive:
+   - Cards en estado 'done': se ocultan a los 2 días de completadas (rotan rápido).
+   - Otras cards: se ocultan a los 7 días de creadas.
+   No se elimina ni cambia estado: solo se oculta del Kanban. Métricas siguen viendo todo. */
+const ARCHIVE_DAYS_ACTIVE = 7;
+const ARCHIVE_DAYS_DONE   = 2;
 const isArchived = (card) => {
+  if (card.estado === 'done') {
+    const ref = card.completedAt || card.createdAt;
+    if (!ref) return false;
+    return (now() - ref) > ARCHIVE_DAYS_DONE * DAY;
+  }
   if (!card.createdAt) return false;
-  return (now() - card.createdAt) > ARCHIVE_DAYS * DAY;
+  return (now() - card.createdAt) > ARCHIVE_DAYS_ACTIVE * DAY;
 };
 
 const seedClients = () => {
@@ -557,7 +565,13 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
    ───────────────────────────────────────────────────────────────────── */
 function ConsultoraKanban() {
   const { state, dispatch, me } = useApp();
-  const team = state.team.filter(u => u.units.includes('consultora'));
+  const team = state.team.filter(u => u.units.includes('consultora') && !u.nonAssignable);
+  const clientesUnicos = useMemo(() => {
+    const set = new Set();
+    state.consultora.cards.forEach(c => c.cliente && set.add(c.cliente));
+    state.maximus.clients.forEach(c => c.cliente && set.add(c.cliente));
+    return Array.from(set).sort();
+  }, [state.consultora.cards, state.maximus.clients]);
   const cards = state.consultora.cards;
   const [editing, setEditing] = useState(null);   // card | null
   const [creating, setCreating] = useState(false);
@@ -593,7 +607,7 @@ function ConsultoraKanban() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Pedidos de clientes"
-        subtitle={`Activos de los últimos ${ARCHIVE_DAYS} días. ${archivedCount > 0 ? `${archivedCount} en histórico.` : ''}`}
+        subtitle={`Activos hasta ${ARCHIVE_DAYS_ACTIVE} días, listos hasta ${ARCHIVE_DAYS_DONE} días. ${archivedCount > 0 ? `${archivedCount} en histórico.` : ''}`}
         actions={<>
           <div className="relative">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -604,7 +618,7 @@ function ConsultoraKanban() {
             <option value="">Todos los analistas</option>
             {team.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
-          <Btn variant={showArchived ? 'primary' : 'soft'} size="md" onClick={() => setShowArchived(s => !s)} title={`${archivedCount} pendings con +${ARCHIVE_DAYS}d`}>
+          <Btn variant={showArchived ? 'primary' : 'soft'} size="md" onClick={() => setShowArchived(s => !s)} title={`${archivedCount} cards archivadas`}>
             <Icon name="clock" size={14} />{showArchived ? 'Ocultando histórico' : `Ver histórico (${archivedCount})`}
           </Btn>
           <Btn onClick={() => setCreating(true)}><Icon name="plus" size={16} />Nuevo pedido</Btn>
@@ -640,6 +654,7 @@ function ConsultoraKanban() {
         open={creating || !!editing}
         card={editing}
         team={team}
+        clientes={clientesUnicos}
         isAdmin={isAdmin}
         onClose={() => { setEditing(null); setCreating(false); }}
         onSave={(card) => { if (card.id) dispatch({ type: 'CONSULT_UPDATE', card }); else dispatch({ type: 'CONSULT_ADD', card: { ...card, id: uid(), createdAt: now(), completedAt: null, estado: card.estado || 'backlog' } }); setEditing(null); setCreating(false); }}
@@ -691,7 +706,7 @@ function KanbanCard({ card, team, onClick }) {
   );
 }
 
-function CardEditor({ open, card, team, isAdmin, onClose, onSave, onDelete }) {
+function CardEditor({ open, card, team, clientes = [], isAdmin, onClose, onSave, onDelete }) {
   const isNew = !card;
   const [form, setForm] = useState(card || { cliente: '', descripcion: '', analistaId: isAdmin ? '' : team[0]?.id || '', prioridad: 'media', deadline: now() + 2*DAY, estado: 'backlog' });
   useEffect(() => { if (open) setForm(card || { cliente: '', descripcion: '', analistaId: '', prioridad: 'media', deadline: now() + 2*DAY, estado: 'backlog' }); }, [open, card]);
@@ -702,8 +717,11 @@ function CardEditor({ open, card, team, isAdmin, onClose, onSave, onDelete }) {
   return (
     <Modal open={open} onClose={onClose} title={isNew ? 'Nuevo pedido' : 'Editar pedido'}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-        <Field label="Cliente">
-          <input value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Cohen" />
+        <Field label="Cliente" hint="Empezá a escribir para autocompletar o agregá uno nuevo">
+          <input list="cli-dl" value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Banco Macro" />
+          <datalist id="cli-dl">
+            {clientes.map(c => <option key={c} value={c} />)}
+          </datalist>
         </Field>
         <Field label="Prioridad">
           <select value={form.prioridad} onChange={e => setForm({ ...form, prioridad: e.target.value })}>
@@ -911,14 +929,27 @@ function CardDetail({ card, team }) {
    ───────────────────────────────────────────────────────────────────── */
 function ConsultoraMetrics() {
   const { state } = useApp();
-  const [period, setPeriod] = useState('semana'); // dia / semana / mes
+  const [period, setPeriod] = useState('semana'); // dia | semana | mes | 90d | year | custom
+  const [customFrom, setCustomFrom] = useState(() => new Date(now() - 30*DAY).toISOString().slice(0,10));
+  const [customTo,   setCustomTo]   = useState(() => new Date(now()).toISOString().slice(0,10));
   const cards = state.consultora.cards;
   const team = state.team.filter(u => u.units.includes('consultora'));
 
-  const periodMs = { dia: DAY, semana: 7*DAY, mes: 30*DAY }[period];
-  const since = now() - periodMs;
+  const range = useMemo(() => {
+    if (period === 'custom') {
+      const from = customFrom ? new Date(customFrom).setHours(0,0,0,0) : now() - 30*DAY;
+      const to   = customTo   ? new Date(customTo).setHours(23,59,59,999) : now();
+      return { from, to, label: `${customFrom} a ${customTo}` };
+    }
+    const map = { dia: 1, semana: 7, mes: 30, '90d': 90, year: 365 };
+    const days = map[period] || 7;
+    return { from: now() - days * DAY, to: now(), label: `Últimos ${days === 1 ? '24h' : days + ' días'}` };
+  }, [period, customFrom, customTo]);
 
-  const completed = cards.filter(c => c.completedAt && c.completedAt >= since);
+  const periodMs = range.to - range.from;
+  const since = range.from;
+
+  const completed = cards.filter(c => c.completedAt && c.completedAt >= range.from && c.completedAt <= range.to);
   const totalCompleted = completed.length;
   const avgHoursOverall = completed.length
     ? Math.round(completed.reduce((s,c) => s + (c.completedAt - c.createdAt), 0) / completed.length / HOUR)
@@ -934,13 +965,18 @@ function ConsultoraMetrics() {
     col, count: cards.filter(c => c.estado === col.id).length
   }));
 
-  // Tarjetas completadas por día en el período (chart bars)
-  const days = Math.min(30, Math.round(periodMs / DAY));
-  const series = Array.from({length: days}, (_, i) => {
-    const dEnd = startOfDay(now() - (days - 1 - i) * DAY) + DAY;
-    const dStart = dEnd - DAY;
+  // Series por día/semana según el largo del rango
+  const totalDays = Math.max(1, Math.round(periodMs / DAY));
+  const bucketDays = totalDays <= 30 ? 1 : totalDays <= 120 ? 7 : 30; // diaria / semanal / mensual
+  const buckets = Math.min(40, Math.ceil(totalDays / bucketDays));
+  const series = Array.from({ length: buckets }, (_, i) => {
+    const dEnd = startOfDay(range.to - (buckets - 1 - i) * bucketDays * DAY) + bucketDays * DAY;
+    const dStart = dEnd - bucketDays * DAY;
     const n = cards.filter(c => c.completedAt && c.completedAt >= dStart && c.completedAt < dEnd).length;
-    return { label: new Date(dStart).toLocaleDateString('es-UY', { day:'2-digit', month:'2-digit' }), n };
+    const label = bucketDays === 1
+      ? new Date(dStart).toLocaleDateString('es-UY', { day:'2-digit', month:'2-digit' })
+      : new Date(dStart).toLocaleDateString('es-UY', { day:'2-digit', month:'short' });
+    return { label, n };
   });
   const maxN = Math.max(1, ...series.map(s => s.n));
 
@@ -948,22 +984,30 @@ function ConsultoraMetrics() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Métricas de Consultora"
-        subtitle="Indicadores de productividad del equipo en el período seleccionado."
+        subtitle={`Indicadores de productividad del equipo · ${range.label}`}
         actions={<>
           <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
-            {['dia','semana','mes'].map(p => (
+            {[
+              ['dia','24h'],['semana','7d'],['mes','30d'],
+              ['90d','90d'],['year','Año'],['custom','Custom'],
+            ].map(([p,label]) => (
               <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs rounded-md capitalize ${period === p ? 'bg-gold text-white' : 'text-muted'}`}>
-                {p === 'dia' ? 'Hoy' : p === 'semana' ? '7 días' : '30 días'}
-              </button>
+                className={`px-3 py-1.5 text-xs rounded-md ${period === p ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
             ))}
           </div>
+          {period === 'custom' && (
+            <div className="flex items-center gap-1.5">
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 140 }} />
+              <span className="text-muted text-xs">→</span>
+              <input type="date" value={customTo}   onChange={e => setCustomTo(e.target.value)}   className="!py-1.5 !text-xs" style={{ width: 140 }} />
+            </div>
+          )}
         </>}
       />
 
       <div className="px-6 pb-6 flex-1 overflow-y-auto space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard title="Tarjetas completadas" value={totalCompleted} hint={`En los últimos ${period === 'dia' ? '24h' : period === 'semana' ? '7 días' : '30 días'}`} />
+          <StatCard title="Tarjetas completadas" value={totalCompleted} hint={range.label} />
           <StatCard title="Tiempo promedio" value={`${avgHoursOverall}h`} hint="Desde creación hasta done" />
           <StatCard title="Activas en el tablero" value={cards.filter(c => c.estado !== 'done').length} hint="Backlog + In progress + Review" />
         </div>

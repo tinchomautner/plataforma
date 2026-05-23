@@ -92,8 +92,16 @@
       (comments.data || []).forEach(c => { (byTask[c.task_id] = byTask[c.task_id] || []).push(mapCmt(c)); });
       tasksMapped.forEach(t => { t.comentarios = (byTask[t.id] || []).sort((a,b) => a.ts - b.ts); });
 
+      // Map team: non_assignable (DB) → nonAssignable (cliente)
+      // Fallback hardcoded en caso de que la columna no exista todavía
+      const NON_ASSIGNABLE_DEFAULT = ['u-mm','u-sh','u-vr','u-fd','u-pl'];
+      const teamMapped = (team.data || []).map(t => ({
+        ...t,
+        nonAssignable: t.non_assignable != null ? !!t.non_assignable : NON_ASSIGNABLE_DEFAULT.includes(t.id),
+      }));
+
       return {
-        team: team.data || [],
+        team: teamMapped,
         consultora: { cards: (cards.data || []).map(mapCard) },
         maximus: {
           clients: clients.data || [],

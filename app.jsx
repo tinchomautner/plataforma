@@ -1081,9 +1081,13 @@ function ConsultoraMetrics() {
                 <div className="flex items-end gap-1.5 h-56 px-1 border-b border-line pb-1">
                   {series.map((s, i) => (
                     <div key={i} className="flex-1 flex flex-col justify-end items-center min-w-0 group relative">
-                      {s.n > 0 && <div className="absolute -top-5 text-[10px] tabular-nums text-ink-2 opacity-0 group-hover:opacity-100 transition pointer-events-none">{s.n}</div>}
-                      <div className="w-full rounded-t-md bg-gold transition group-hover:bg-gold-2"
-                           style={{ height: `${Math.max(s.n/maxN*100, s.n > 0 ? 8 : 0)}%` }}
+                      {s.n > 0 && <div className="absolute -top-5 text-[10px] tabular-nums text-ink font-semibold opacity-0 group-hover:opacity-100 transition pointer-events-none">{s.n}</div>}
+                      <div className="w-full rounded-t-md transition"
+                           style={{
+                             height: `${Math.max(s.n/maxN*100, s.n > 0 ? 8 : 0)}%`,
+                             background: s.n > 0 ? '#0066CC' : 'transparent',
+                             minHeight: s.n > 0 ? 6 : 0,
+                           }}
                            title={`${s.label}: ${s.n}`} />
                     </div>
                   ))}
@@ -1830,11 +1834,9 @@ function ProspectCard({ p, onClick }) {
           )}
         </div>
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-line">
-          {p.jiraKey ? (
-            <span className="text-[10px] text-muted font-mono tracking-tight">{p.jiraKey}</span>
-          ) : (
-            <span className="text-[10px] text-muted">{p.producto || ''}</span>
-          )}
+          {p.jiraKey
+            ? <span className="text-[10px] text-muted font-mono tracking-tight">{p.jiraKey}</span>
+            : <span />}
           {p.proxSeguimiento && (
             <div className="flex items-center gap-1 text-[10px] text-ink-2 tabular-nums">
               <Icon name="clock" size={10} />{fmtDate(p.proxSeguimiento)}

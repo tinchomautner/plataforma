@@ -287,7 +287,7 @@ function Btn({ children, onClick, variant = 'primary', size = 'md', className = 
   const base = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition border';
   const sizes = { sm: 'px-2.5 py-1.5 text-xs', md: 'px-3.5 py-2 text-sm', lg: 'px-4 py-2.5 text-sm' };
   const variants = {
-    primary: 'bg-gold hover:bg-gold-2 text-bg border-gold shadow-gold',
+    primary: 'bg-gold hover:bg-gold-2 text-white border-gold shadow-gold',
     ghost:   'bg-transparent hover:bg-surface-2 text-ink border-line',
     soft:    'bg-surface-2 hover:bg-surface-3 text-ink border-line',
     danger:  'bg-bad/10 hover:bg-bad/20 text-bad border-bad/30',
@@ -332,7 +332,7 @@ function PriorityBadge({ value }) {
 
 function EmptyState({ icon = 'cube', title, hint, action }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-14 px-6 border border-dashed border-line rounded-2xl bg-white/[0.02]">
+    <div className="flex flex-col items-center justify-center text-center py-14 px-6 border border-dashed border-line rounded-2xl bg-surface">
       <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center text-gold mb-3"><Icon name={icon} size={22} /></div>
       <h4 className="font-semibold mb-1">{title}</h4>
       {hint && <p className="text-sm text-muted max-w-md">{hint}</p>}
@@ -349,7 +349,7 @@ function Login({ team, onLogin }) {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-3xl">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-lg bg-gold-grad shadow-gold grid place-items-center font-bold text-bg text-lg">L</div>
+          <div className="w-11 h-11 rounded-lg bg-gold-grad shadow-gold grid place-items-center font-bold text-white text-lg">L</div>
           <div>
             <div className="font-semibold text-xl tracking-tight text-ink">Plataforma Interna</div>
             <div className="text-xs text-muted uppercase tracking-wider">LATAM ConsultUs · MaximUs</div>
@@ -363,7 +363,7 @@ function Login({ team, onLogin }) {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {team.map(u => (
               <button key={u.id} onClick={() => onLogin(u.id)}
-                className="card-lift text-left flex items-center gap-3 p-3 rounded-xl border border-line bg-white/[0.02] hover:bg-white/[0.05]">
+                className="card-lift text-left flex items-center gap-3 p-3 rounded-xl border border-line bg-surface hover:bg-surface-2">
                 <Avatar user={u} size={40} />
                 <div className="min-w-0">
                   <div className="font-medium text-sm truncate">{u.name}</div>
@@ -404,7 +404,7 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
   return (
     <aside className="shrink-0 border-r border-line bg-bg-2 flex flex-col" style={{ width: 230 }}>
       <div className="p-4 flex items-center gap-2.5 border-b border-line">
-        <div className="w-8 h-8 rounded-lg bg-gold-grad shadow-gold grid place-items-center font-bold text-bg text-sm">L</div>
+        <div className="w-8 h-8 rounded-lg bg-gold-grad shadow-gold grid place-items-center font-bold text-white text-sm">L</div>
         <div className="min-w-0">
           <div className="font-semibold text-sm leading-tight text-ink">Plataforma</div>
           <div className="text-[10px] text-muted leading-tight uppercase tracking-wider mt-0.5">LATAM · MaximUs</div>
@@ -424,11 +424,11 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced }) {
                 return (
                   <button key={it.id} onClick={() => setRoute(it.id)}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition
-                      ${active ? 'bg-gold/15 text-gold border border-gold/30' : 'text-muted hover:text-ink hover:bg-white/5 border border-transparent'}`}>
+                      ${active ? 'bg-gold/15 text-gold border border-gold/30' : 'text-muted hover:text-ink hover:bg-surface-2 border border-transparent'}`}>
                     <Icon name={it.icon} size={16} />
                     <span className="flex-1 text-left">{it.label}</span>
                     {count > 0 && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-white/15' : 'bg-white/5 text-muted'}`}>{count}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-surface-3' : 'bg-surface text-muted'}`}>{count}</span>
                     )}
                   </button>
                 );
@@ -518,7 +518,7 @@ function ConsultoraKanban() {
             <div className="flex items-center justify-between px-1 mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold">{col.label}</span>
-                <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-white/5">{byCol[col.id].length}</span>
+                <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-surface">{byCol[col.id].length}</span>
               </div>
             </div>
             <div className="space-y-2 flex-1">
@@ -665,9 +665,9 @@ function ConsultoraCalendar() {
         title="Calendario de deadlines"
         subtitle="Vista mensual o semanal de los pedidos activos del equipo de Consultora."
         actions={<>
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-line">
-            <button onClick={() => setView('mes')} className={`px-3 py-1.5 text-xs rounded-md ${view==='mes'?'bg-gold text-bg':'text-muted'}`}>Mes</button>
-            <button onClick={() => setView('sem')} className={`px-3 py-1.5 text-xs rounded-md ${view==='sem'?'bg-gold text-bg':'text-muted'}`}>Semana</button>
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+            <button onClick={() => setView('mes')} className={`px-3 py-1.5 text-xs rounded-md ${view==='mes'?'bg-gold text-white':'text-muted'}`}>Mes</button>
+            <button onClick={() => setView('sem')} className={`px-3 py-1.5 text-xs rounded-md ${view==='sem'?'bg-gold text-white':'text-muted'}`}>Semana</button>
           </div>
           <Btn variant="soft" size="sm" onClick={() => move(-1)}><Icon name="chevL" size={14} /></Btn>
           <Btn variant="soft" size="sm" onClick={() => setAnchor(new Date())}>Hoy</Btn>
@@ -837,10 +837,10 @@ function ConsultoraMetrics() {
         title="Métricas de Consultora"
         subtitle="Indicadores de productividad del equipo en el período seleccionado."
         actions={<>
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-line">
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
             {['dia','semana','mes'].map(p => (
               <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs rounded-md capitalize ${period === p ? 'bg-gold text-bg' : 'text-muted'}`}>
+                className={`px-3 py-1.5 text-xs rounded-md capitalize ${period === p ? 'bg-gold text-white' : 'text-muted'}`}>
                 {p === 'dia' ? 'Hoy' : p === 'semana' ? '7 días' : '30 días'}
               </button>
             ))}
@@ -880,7 +880,7 @@ function ConsultoraMetrics() {
                       <span>{col.label}</span>
                       <span className="text-muted">{count} · {pct}%</span>
                     </div>
-                    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-2 rounded-full bg-surface overflow-hidden">
                       <div className="h-full bg-gold" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -1323,7 +1323,7 @@ function MaximusProspects() {
             className="rounded-2xl bg-bg-2/60 border border-line p-3 flex flex-col min-h-[300px]">
             <div className="flex items-center justify-between px-1 mb-2">
               <span className="text-sm font-semibold">{col.label}</span>
-              <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-white/5">{byCol[col.id].length}</span>
+              <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-surface">{byCol[col.id].length}</span>
             </div>
             <div className="space-y-2 flex-1">
               {byCol[col.id].map(p => (
@@ -1451,9 +1451,9 @@ function MaximusTasks() {
         title="Tareas del equipo MaximUs"
         subtitle="Tablero compartido. Una tarea puede tener varios responsables. Cada uno ve todas o solo las suyas."
         actions={<>
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-line">
-            <button onClick={() => setScope('todas')} className={`px-3 py-1.5 text-xs rounded-md ${scope==='todas'?'bg-gold text-bg':'text-muted'}`}>Todas</button>
-            <button onClick={() => setScope('mias')}  className={`px-3 py-1.5 text-xs rounded-md ${scope==='mias' ?'bg-gold text-bg':'text-muted'}`}>Mías</button>
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+            <button onClick={() => setScope('todas')} className={`px-3 py-1.5 text-xs rounded-md ${scope==='todas'?'bg-gold text-white':'text-muted'}`}>Todas</button>
+            <button onClick={() => setScope('mias')}  className={`px-3 py-1.5 text-xs rounded-md ${scope==='mias' ?'bg-gold text-white':'text-muted'}`}>Mías</button>
           </div>
           <div className="relative">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -1472,7 +1472,7 @@ function MaximusTasks() {
             className="rounded-2xl bg-bg-2/60 border border-line p-3 flex flex-col min-h-[300px]">
             <div className="flex items-center justify-between px-1 mb-2">
               <span className="text-sm font-semibold">{col.label}</span>
-              <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-white/5">{byCol[col.id].length}</span>
+              <span className="text-[11px] text-muted px-1.5 py-0.5 rounded-md bg-surface">{byCol[col.id].length}</span>
             </div>
             <div className="space-y-2 flex-1">
               {byCol[col.id].map(t => (
@@ -1580,7 +1580,7 @@ function TaskEditor({ open, task, team, me, onClose, onSave, onDelete, onComment
               return (
                 <div key={c.id} className="flex gap-2">
                   <Avatar user={autor} size={24} />
-                  <div className="flex-1 bg-white/5 border border-line rounded-lg p-2">
+                  <div className="flex-1 bg-surface border border-line rounded-lg p-2">
                     <div className="text-[11px] text-muted">{autor?.name || '—'} · {fmtDateTime(c.ts)}</div>
                     <div className="text-sm">{c.texto}</div>
                   </div>

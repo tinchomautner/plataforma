@@ -9,8 +9,8 @@ const { useState, useEffect, useMemo, useReducer, useRef, useCallback,
 /* ─────────────────────────────────────────────────────────────────────
    Helpers
    ───────────────────────────────────────────────────────────────────── */
-const STORAGE_KEY = 'plataforma-interna-v1';
-const SESSION_KEY = 'plataforma-interna-session-v1';
+const STORAGE_KEY = 'plataforma-interna-v2';
+const SESSION_KEY = 'plataforma-interna-session-v2';
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
@@ -213,7 +213,11 @@ const seedTasks = () => {
 
 const initialState = () => {
   const existing = ls.get(STORAGE_KEY);
-  if (existing && existing.team && existing.consultora && existing.maximus) return existing;
+  // Migración: si el team no tiene username (versión anterior), regenerar todo desde seed
+  const teamOK = existing?.team?.[0]?.username && existing?.team?.[0]?.password;
+  if (existing && teamOK && existing.consultora && existing.maximus) return existing;
+  // Borrar también keys viejas para que no se acumulen
+  try { localStorage.removeItem('plataforma-interna-v1'); localStorage.removeItem('plataforma-interna-session-v1'); } catch {}
   return {
     team: TEAM_SEED,
     consultora: { cards: seedConsultora() },

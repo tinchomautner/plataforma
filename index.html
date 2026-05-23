@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plataforma Interna — LATAM ConsultUs / MaximUs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'system-ui', 'sans-serif'],
+          },
+          fontSize: {
+            'xs':  ['11px',  { lineHeight: '1.45' }],
+            'sm':  ['12.5px',{ lineHeight: '1.5' }],
+            'base':['13px',  { lineHeight: '1.55' }],
+            'md':  ['14px',  { lineHeight: '1.5' }],
+            'lg':  ['16px',  { lineHeight: '1.45' }],
+            'xl':  ['18px',  { lineHeight: '1.35' }],
+            '2xl': ['22px',  { lineHeight: '1.25' }],
+            '3xl': ['28px',  { lineHeight: '1.2' }],
+          },
+          colors: {
+            bg:        '#0a0e1a',
+            'bg-2':    '#0f1424',
+            surface:   '#131932',
+            'surface-2':'#1a2140',
+            'surface-3':'#232a4d',
+            'line':    '#232a4d',
+            'line-2':  '#2f375f',
+            ink:       '#e7e9f3',
+            'ink-2':   '#b9bdd5',
+            muted:     '#6b7194',
+            gold:      '#d8b257',
+            'gold-2':  '#b89441',
+            ok:        '#16a34a',
+            warn:      '#eab308',
+            bad:       '#ef4444',
+            info:      '#3b82f6',
+          },
+          borderRadius: {
+            DEFAULT: '8px',
+            md: '8px',
+            lg: '9px',
+            xl: '10px',
+            '2xl': '14px',
+          },
+          boxShadow: {
+            card: '0 1px 3px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.25)',
+            gold: '0 0 0 1px rgba(216,178,87,0.3), 0 4px 12px rgba(216,178,87,0.2)',
+          },
+          backgroundImage: {
+            'gold-grad': 'linear-gradient(135deg, #d8b257 0%, #b89441 100%)',
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 + Babel standalone -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="bg-bg text-ink antialiased">
+  <div id="root"></div>
+  <script src="./seed-clients.js"></script>
+  <script type="text/babel" data-presets="react" src="./app.jsx"></script>
+</body>
+</html>

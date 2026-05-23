@@ -966,13 +966,16 @@ function CardDetail({ card, team }) {
 function ConsultoraMetrics() {
   const { state } = useApp();
   const [tab, setTab] = useState('productividad'); // productividad | analisis
-  const [period, setPeriod] = useState('semana'); // dia | semana | mes | 90d | year | custom
+  const [period, setPeriod] = useState('semana'); // dia | semana | mes | 90d | year | custom | all
   const [customFrom, setCustomFrom] = useState(() => new Date(now() - 30*DAY).toISOString().slice(0,10));
   const [customTo,   setCustomTo]   = useState(() => new Date(now()).toISOString().slice(0,10));
   const cards = state.consultora.cards;
   const team = state.team.filter(u => u.units.includes('consultora') && !u.nonAssignable);
 
   const range = useMemo(() => {
+    if (period === 'all') {
+      return { from: 0, to: now() * 2, label: 'Histórico completo' };
+    }
     if (period === 'custom') {
       const from = customFrom ? new Date(customFrom).setHours(0,0,0,0) : now() - 30*DAY;
       const to   = customTo   ? new Date(customTo).setHours(23,59,59,999) : now();
@@ -1021,21 +1024,19 @@ function ConsultoraMetrics() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Métricas de Consultora"
-        subtitle={tab === 'productividad' ? `Productividad del equipo · ${range.label}` : 'Análisis de pedidos · histórico completo'}
+        subtitle={`${tab === 'productividad' ? 'Productividad del equipo' : 'Análisis de pedidos'} · ${range.label}`}
         actions={<>
           <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
             <button onClick={() => setTab('productividad')} className={`px-3 py-1.5 text-xs rounded-md ${tab==='productividad' ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>Productividad</button>
             <button onClick={() => setTab('analisis')}      className={`px-3 py-1.5 text-xs rounded-md ${tab==='analisis'      ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>Análisis pedidos</button>
           </div>
-          {tab === 'productividad' && (
-            <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
-              {[['dia','24h'],['semana','7d'],['mes','30d'],['90d','90d'],['year','Año'],['custom','Custom']].map(([p,label]) => (
-                <button key={p} onClick={() => setPeriod(p)}
-                  className={`px-3 py-1.5 text-xs rounded-md ${period === p ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
-              ))}
-            </div>
-          )}
-          {tab === 'productividad' && period === 'custom' && (
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+            {[['dia','24h'],['semana','7d'],['mes','30d'],['90d','90d'],['year','Año'],['all','Todo'],['custom','Custom']].map(([p,label]) => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 text-xs rounded-md ${period === p ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
+            ))}
+          </div>
+          {period === 'custom' && (
             <div className="flex items-center gap-1.5">
               <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 140 }} />
               <span className="text-muted text-xs">→</span>
@@ -1159,7 +1160,7 @@ function ConsultoraMetrics() {
         </Panel>
         </>}
 
-        {tab === 'analisis' && <AnalisisPedidos cards={cards} />}
+        {tab === 'analisis' && <AnalisisPedidos cards={cards} range={range} />}
       </div>
     </div>
   );
@@ -1168,10 +1169,10 @@ function ConsultoraMetrics() {
 /* ─────────────────────────────────────────────────────────────────────
    ANÁLISIS DE PEDIDOS (estilo PPT informe interno)
    ───────────────────────────────────────────────────────────────────── */
-function AnalisisPedidos({ cards }) {
+function AnalisisPedidos({ cards, range }) {
   const data = useMemo(() => {
-    // Usar la fecha de creación como anclaje del pedido
-    const withDate = cards.filter(c => c.createdAt);
+    // Filtrar por createdAt dentro del range seleccionado
+    const withDate = cards.filter(c => c.createdAt && c.createdAt >= range.from && c.createdAt <= range.to);
     const totalPedidos = withDate.length;
     const clientesUnicos = new Set(withDate.map(c => c.cliente)).size;
 
@@ -1205,7 +1206,7 @@ function AnalisisPedidos({ cards }) {
     const top5pct = topClientes.slice(0,5).reduce((s,c) => s + c.n, 0) / Math.max(1,totalPedidos) * 100;
 
     return { totalPedidos, clientesUnicos, promMensual, months, pico, piso, byInstr, topClientes, top5pct };
-  }, [cards]);
+  }, [cards, range]);
 
   if (data.totalPedidos === 0) return <EmptyState title="Sin pedidos para analizar" hint="Cargá pedidos en el Kanban para ver el análisis." />;
 

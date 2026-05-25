@@ -1425,19 +1425,22 @@ function MaximusUsage() {
   const [filterPais, setFilterPais] = useState('');
   const [filterServicio, setFilterServicio] = useState('');
   const [filterSemaforo, setFilterSemaforo] = useState('');
+  const [filterAccion, setFilterAccion] = useState('');
 
   const paises = useMemo(() => Array.from(new Set(clients.map(c => c.pais).filter(Boolean))).sort(), [clients]);
   const servicios = useMemo(() => Array.from(new Set(clients.map(c => c.servicio).filter(Boolean))).sort(), [clients]);
+  const acciones = useMemo(() => Array.from(new Set(clients.map(c => c.accion).filter(Boolean).map(a => a.trim()))).sort(), [clients]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
     return clients.filter(c =>
-      (!s || `${c.cliente} ${c.contacto || ''} ${c.pais || ''}`.toLowerCase().includes(s)) &&
+      (!s || `${c.cliente} ${c.contacto || ''} ${c.pais || ''} ${c.accion || ''}`.toLowerCase().includes(s)) &&
       (!filterPais || c.pais === filterPais) &&
       (!filterServicio || c.servicio === filterServicio) &&
-      (!filterSemaforo || clientScore(c).color === filterSemaforo)
+      (!filterSemaforo || clientScore(c).color === filterSemaforo) &&
+      (!filterAccion || (c.accion || '').trim() === filterAccion)
     );
-  }, [clients, search, filterPais, filterServicio, filterSemaforo]);
+  }, [clients, search, filterPais, filterServicio, filterSemaforo, filterAccion]);
 
   const summary = useMemo(() => {
     const r = { verde: 0, amarillo: 0, rojo: 0, total: clients.length };
@@ -1519,7 +1522,7 @@ function MaximusUsage() {
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Icon name="search" size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar…" className="!pl-8 !py-1.5 !text-xs" style={{ width: 180 }} />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, contacto, acción…" className="!pl-8 !py-1.5 !text-xs" style={{ width: 220 }} />
               </div>
               <select value={filterPais} onChange={e => setFilterPais(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 130 }}>
                 <option value="">Todos los países</option>
@@ -1534,6 +1537,10 @@ function MaximusUsage() {
                 <option value="verde">Verde</option>
                 <option value="amarillo">Amarillo</option>
                 <option value="rojo">Rojo</option>
+              </select>
+              <select value={filterAccion} onChange={e => setFilterAccion(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 200 }} title="Filtrar por acción sugerida">
+                <option value="">Toda acción sugerida</option>
+                {acciones.map(a => <option key={a} value={a}>{a.length > 40 ? a.slice(0, 40) + '…' : a}</option>)}
               </select>
             </div>
           }>

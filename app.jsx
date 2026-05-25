@@ -1699,7 +1699,17 @@ function MaximusPlanComercial() {
       .map(c => ({ ...c, _cat: categoriaAccion(c.accion) }));
   }, [clients]);
 
-  const prospectsSemana = useMemo(() => prospects.filter(p => p.estado === 'contactar_esta_semana'), [prospects]);
+  const prospectsSemana = useMemo(() => {
+    const s = search.toLowerCase();
+    return prospects.filter(p =>
+      p.estado === 'contactar_esta_semana' &&
+      (!s || `${p.empresa} ${p.contacto || ''} ${p.pais || ''} ${p.nota_plan || ''}`.toLowerCase().includes(s)) &&
+      (filterAsignacion === 'todos' ||
+        (filterAsignacion === 'mio' && p.asignado_a === me.id) ||
+        (filterAsignacion === 'sin' && !p.asignado_a) ||
+        (p.asignado_a === filterAsignacion))
+    );
+  }, [prospects, search, filterAsignacion, me]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
@@ -1713,15 +1723,17 @@ function MaximusPlanComercial() {
     );
   }, [candidatos, search, filterCategoria, filterAsignacion, me]);
 
+  const prospectsTodosSemana = useMemo(() => prospects.filter(p => p.estado === 'contactar_esta_semana'), [prospects]);
   const stats = useMemo(() => {
-    const r = { total: candidatos.length, sinAsignar: 0, byAdmin: {} };
+    const totalUnits = candidatos.length + prospectsTodosSemana.length;
+    const r = { total: totalUnits, sinAsignar: 0, byAdmin: {} };
     admins.forEach(a => { r.byAdmin[a.id] = { user: a, count: 0 }; });
-    candidatos.forEach(c => {
+    [...candidatos, ...prospectsTodosSemana].forEach(c => {
       if (!c.asignado_a) r.sinAsignar++;
       else if (r.byAdmin[c.asignado_a]) r.byAdmin[c.asignado_a].count++;
     });
     return r;
-  }, [candidatos, admins]);
+  }, [candidatos, prospectsTodosSemana, admins]);
 
   const sanitize = (c) => { const { _cat, ...rest } = c; return rest; };
   const setAsignado = (client, userId) => {
@@ -1769,7 +1781,7 @@ function MaximusPlanComercial() {
 
       <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto space-y-5">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard title="Total pendientes" value={stats.total} hint="Contactar + Armar Reunión" />
+          <StatCard title="Total pendientes" value={stats.total} hint="Clientes + prospects esta semana" />
           <StatCard title="Sin asignar" value={stats.sinAsignar} hint={stats.sinAsignar > 0 ? 'Reparta entre los admins' : 'Todos asignados ✓'} />
           {admins.map(a => (
             <StatCard key={a.id} title={a.name.split(' ')[0]} value={stats.byAdmin[a.id]?.count || 0} hint={`asignados a ${a.name.split(' ')[0]}`} />
@@ -1777,7 +1789,7 @@ function MaximusPlanComercial() {
         </div>
 
         {prospectsSemana.length > 0 && (
-          <Panel title={`Prospects · Contactar esta semana (${prospectsSemana.length})`}>
+          <Panel title={`Prospects · Contactar esta semana (${prospectsSemana.length}${prospectsTodosSemana.length !== prospectsSemana.length ? ` de ${prospectsTodosSemana.length}` : ''})`}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">

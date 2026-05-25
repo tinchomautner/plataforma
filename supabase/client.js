@@ -22,17 +22,51 @@
     return;
   }
 
-  // Carga lazy de supabase-js
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload = () => {
-    const sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
-      realtime: { params: { eventsPerSecond: 5 } }
-    });
-    window.SUPA = buildAPI(sb);
-    window.dispatchEvent(new CustomEvent('supa-ready'));
-  };
-  document.head.appendChild(s);
+  function init() {
+    try {
+      const sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
+        realtime: { params: { eventsPerSecond: 5 } }
+      });
+      window.SUPA = buildAPI(sb);
+      window.dispatchEvent(new CustomEvent('supa-ready'));
+      console.log('[plataforma] Supabase conectado ✓');
+    } catch (e) {
+      console.error('[plataforma] Supabase init failed:', e);
+      window.SUPA = { enabled: false };
+    }
+  }
+
+  let initialized = false;
+  function tryInit() {
+    if (initialized) return;
+    if (window.supabase) { initialized = true; init(); }
+  }
+
+  if (window.supabase) {
+    tryInit();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    s.onload = tryInit;
+    s.onerror = () => {
+      console.error('[plataforma] No se pudo cargar supabase-js desde CDN');
+      window.SUPA = { enabled: false };
+    };
+    document.head.appendChild(s);
+    // Polling como fallback (onload a veces no dispara)
+    let polls = 0;
+    const iv = setInterval(() => {
+      polls++;
+      if (window.supabase) { clearInterval(iv); tryInit(); }
+      else if (polls > 50) { // 10 segundos
+        clearInterval(iv);
+        if (!initialized) {
+          console.error('[plataforma] Timeout esperando supabase-js');
+          window.SUPA = { enabled: false };
+        }
+      }
+    }, 200);
+  }
 
   /* === API === */
   function buildAPI(sb) {
@@ -239,6 +273,7 @@
       return res;
     }
     async function deleteClient(id)   { return sb.from('maximus_clients').delete().eq('id', id); }
+    async function upsertProspect(p)  {
       const out = mapProspectOut(p);
       // Persistir asignación en localStorage SIEMPRE como fallback
       if (out.asignado_a !== undefined) {

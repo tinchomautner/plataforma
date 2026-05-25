@@ -1812,7 +1812,6 @@ function MaximusPlanComercial() {
                         <td className="pr-2 text-ink-2">{p.pais || '—'}</td>
                         <td className="pr-2">
                           <NotaPlanEditable value={p.nota_plan} onSave={(t) => setNotaPlanProspect(p, t)} />
-                          {p.jiraKey && <div className="text-[9px] text-muted font-mono mt-0.5">{p.jiraKey}</div>}
                         </td>
                         <td className="pr-2">
                           {asig ? (
@@ -2156,16 +2155,11 @@ function ProspectCard({ p, onClick }) {
             <Badge className="bg-gold/10 text-gold border-gold/30"><Icon name="link" size={10} />{p.clienteCompartido}</Badge>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-line">
-          {p.jiraKey
-            ? <span className="text-[10px] text-muted font-mono tracking-tight">{p.jiraKey}</span>
-            : <span />}
-          {p.proxSeguimiento && (
-            <div className="flex items-center gap-1 text-[10px] text-ink-2 tabular-nums">
-              <Icon name="clock" size={10} />{fmtDate(p.proxSeguimiento)}
-            </div>
-          )}
-        </div>
+        {p.proxSeguimiento && (
+          <div className="flex items-center justify-end gap-1 pt-2 border-t border-line text-[10px] text-ink-2 tabular-nums">
+            <Icon name="clock" size={10} />{fmtDate(p.proxSeguimiento)}
+          </div>
+        )}
       </div>
     </div>
   );

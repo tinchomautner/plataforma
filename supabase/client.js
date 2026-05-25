@@ -42,23 +42,36 @@
     if (window.supabase) { initialized = true; init(); }
   }
 
+  // CDNs en orden de preferencia (si uno falla, prueba el siguiente)
+  const CDNS = [
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
+    'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js',
+    'https://cdn.skypack.dev/@supabase/supabase-js@2',
+  ];
+
+  function tryLoadCDN(idx) {
+    if (idx >= CDNS.length) {
+      console.error('[plataforma] Todos los CDN de supabase-js fallaron');
+      if (!initialized) window.SUPA = { enabled: false };
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = CDNS[idx];
+    s.onload = () => { console.log('[plataforma] supabase-js cargado de', CDNS[idx]); tryInit(); };
+    s.onerror = () => { console.warn('[plataforma] CDN falló:', CDNS[idx]); tryLoadCDN(idx + 1); };
+    document.head.appendChild(s);
+  }
+
   if (window.supabase) {
     tryInit();
   } else {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-    s.onload = tryInit;
-    s.onerror = () => {
-      console.error('[plataforma] No se pudo cargar supabase-js desde CDN');
-      window.SUPA = { enabled: false };
-    };
-    document.head.appendChild(s);
-    // Polling como fallback (onload a veces no dispara)
+    tryLoadCDN(0);
+    // Polling fallback (onload a veces no dispara)
     let polls = 0;
     const iv = setInterval(() => {
       polls++;
       if (window.supabase) { clearInterval(iv); tryInit(); }
-      else if (polls > 50) { // 10 segundos
+      else if (polls > 75) { // 15 segundos
         clearInterval(iv);
         if (!initialized) {
           console.error('[plataforma] Timeout esperando supabase-js');

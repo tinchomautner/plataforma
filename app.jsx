@@ -1808,7 +1808,6 @@ function EnviarAnalisis({ state, dispatch, me }) {
                     <th className="py-2 pr-2">Cliente</th>
                     <th className="pr-2">Contacto</th>
                     <th className="pr-2">Teléfono</th>
-                    <th className="pr-2">Activos</th>
                     <th className="pr-2"></th>
                   </tr>
                 </thead>
@@ -1821,7 +1820,6 @@ function EnviarAnalisis({ state, dispatch, me }) {
                         <td className="py-2.5 pr-2 font-medium text-ink">{c.cliente}</td>
                         <td className="pr-2 text-ink-2">{c.contacto || '—'}</td>
                         <td className="pr-2 text-ink-2 tabular-nums">{c.telefono || <span className="text-bad text-[11px]">sin teléfono</span>}</td>
-                        <td className="pr-2 text-[11px] text-muted">{(c.activos || []).join(', ')}</td>
                         <td className="pr-2">
                           {tel ? (
                             <button onClick={() => enviarUno(c)}

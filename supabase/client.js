@@ -75,15 +75,32 @@
     const mapCmt = (r) => ({ id: r.id, autorId: r.autor_id, ts: new Date(r.ts).getTime(), texto: r.texto });
     const mapCmtOut = (c, taskId) => ({ id: c.id, task_id: taskId, autor_id: c.autorId, ts: new Date(c.ts).toISOString(), texto: c.texto });
 
+    /* Paginación manual: Supabase corta a 1000 por default.
+       Range explícito en bloques de 1000 hasta agotar. */
+    async function selectAll(table) {
+      const PAGE = 1000;
+      let from = 0, out = [];
+      while (true) {
+        const res = await sb.from(table).select('*').range(from, from + PAGE - 1);
+        if (res.error) throw res.error;
+        if (!res.data?.length) break;
+        out = out.concat(res.data);
+        if (res.data.length < PAGE) break;
+        from += PAGE;
+        if (from > 50000) break; // guardrail
+      }
+      return out;
+    }
+
     async function fetchAll() {
       const [team, cards, clients, prospects, tasks, comments] = await Promise.all([
-        sb.from('team').select('*'),
-        sb.from('consultora_cards').select('*'),
-        sb.from('maximus_clients').select('*'),
-        sb.from('maximus_prospects').select('*'),
-        sb.from('maximus_tasks').select('*'),
-        sb.from('maximus_task_comments').select('*'),
-      ]);
+        selectAll('team'),
+        selectAll('consultora_cards'),
+        selectAll('maximus_clients'),
+        selectAll('maximus_prospects'),
+        selectAll('maximus_tasks'),
+        selectAll('maximus_task_comments'),
+      ]).then(arr => arr.map(data => ({ data, error: null })));
       const err = [team, cards, clients, prospects, tasks, comments].find(r => r.error);
       if (err) throw err.error;
 

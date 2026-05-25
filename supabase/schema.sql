@@ -75,7 +75,32 @@ create table if not exists public.maximus_clients (
   semaforo      text,
   asignado_a    text references public.team(id),
   nota_plan     text,
-  fecha_renovacion text       -- formato 'YYYY-MM'
+  fecha_renovacion text,      -- formato 'YYYY-MM'
+  telefono      text,
+  activos       jsonb default '[]'::jsonb
+);
+
+-- Análisis publicados (PDFs alojados externamente)
+create table if not exists public.analisis (
+  id           text primary key,
+  ticker       text not null,
+  titulo       text not null,
+  pdf_url      text not null,
+  nota         text default '',
+  uploaded_by  text references public.team(id),
+  uploaded_at  timestamptz not null default now()
+);
+
+-- Historial de envíos por whatsapp
+create table if not exists public.envios_whatsapp (
+  id            text primary key,
+  analisis_id   text references public.analisis(id) on delete cascade,
+  cliente_id    text references public.maximus_clients(id),
+  contacto      text,
+  telefono      text,
+  mensaje       text,
+  enviado_by    text references public.team(id),
+  enviado_at    timestamptz not null default now()
 );
 create index if not exists idx_max_clients_semaforo on public.maximus_clients(semaforo);
 create index if not exists idx_max_clients_pais on public.maximus_clients(pais);

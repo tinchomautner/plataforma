@@ -146,13 +146,15 @@
       // Intentar migrar asignaciones locales antes de hidratar
       migrateLocalAsignaciones().catch(() => {});
 
-      const [team, cards, clients, prospects, tasks, comments] = await Promise.all([
+      const [team, cards, clients, prospects, tasks, comments, analisis, envios] = await Promise.all([
         selectAll('team'),
         selectAll('consultora_cards'),
         selectAll('maximus_clients'),
         selectAll('maximus_prospects'),
         selectAll('maximus_tasks'),
         selectAll('maximus_task_comments'),
+        selectAll('analisis').catch(() => []),
+        selectAll('envios_whatsapp').catch(() => []),
       ]).then(arr => arr.map(data => ({ data, error: null })));
       const err = [team, cards, clients, prospects, tasks, comments].find(r => r.error);
       if (err) throw err.error;
@@ -201,6 +203,15 @@
           clients: clientsMapped,
           prospects: prospectsMapped,
           tasks: tasksMapped,
+          analisis: (analisis.data || []).map(a => ({
+            id: a.id, ticker: a.ticker, titulo: a.titulo, pdfUrl: a.pdf_url, nota: a.nota || '',
+            uploadedBy: a.uploaded_by, uploadedAt: a.uploaded_at ? new Date(a.uploaded_at).getTime() : null,
+          })).sort((x,y) => (y.uploadedAt||0) - (x.uploadedAt||0)),
+          envios: (envios.data || []).map(e => ({
+            id: e.id, analisisId: e.analisis_id, clienteId: e.cliente_id,
+            contacto: e.contacto, telefono: e.telefono, mensaje: e.mensaje,
+            enviadoBy: e.enviado_by, enviadoAt: e.enviado_at ? new Date(e.enviado_at).getTime() : null,
+          })),
         }
       };
     }
@@ -221,14 +232,13 @@
         } catch {}
       }
       const res = await sb.from('maximus_clients').upsert({ id, ...rest });
-      if (res.error && /asignado_a|nota_plan|fecha_renovacion/.test(res.error.message || '')) {
-        const { asignado_a, nota_plan, fecha_renovacion, ...without } = rest;
+      if (res.error && /asignado_a|nota_plan|fecha_renovacion|telefono|activos/.test(res.error.message || '')) {
+        const { asignado_a, nota_plan, fecha_renovacion, telefono, activos, ...without } = rest;
         return sb.from('maximus_clients').upsert({ id, ...without });
       }
       return res;
     }
     async function deleteClient(id)   { return sb.from('maximus_clients').delete().eq('id', id); }
-    async function upsertProspect(p)  {
       const out = mapProspectOut(p);
       // Persistir asignación en localStorage SIEMPRE como fallback
       if (out.asignado_a !== undefined) {
@@ -252,6 +262,23 @@
     async function deleteTask(id)     { return sb.from('maximus_tasks').delete().eq('id', id); }
     async function addComment(taskId, c) { return sb.from('maximus_task_comments').insert(mapCmtOut(c, taskId)); }
 
+    async function upsertAnalisis(a) {
+      return sb.from('analisis').upsert({
+        id: a.id, ticker: a.ticker, titulo: a.titulo, pdf_url: a.pdfUrl,
+        nota: a.nota || '', uploaded_by: a.uploadedBy || null,
+        uploaded_at: a.uploadedAt ? new Date(a.uploadedAt).toISOString() : new Date().toISOString(),
+      });
+    }
+    async function deleteAnalisis(id) { return sb.from('analisis').delete().eq('id', id); }
+    async function addEnvio(e) {
+      return sb.from('envios_whatsapp').insert({
+        id: e.id, analisis_id: e.analisisId, cliente_id: e.clienteId,
+        contacto: e.contacto, telefono: e.telefono, mensaje: e.mensaje,
+        enviado_by: e.enviadoBy || null,
+        enviado_at: new Date().toISOString(),
+      });
+    }
+
     function subscribe(onChange) {
       const ch = sb.channel('plataforma-sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'consultora_cards'     }, () => onChange())
@@ -260,6 +287,8 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'maximus_tasks'        }, () => onChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'maximus_task_comments'}, () => onChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team'                 }, () => onChange())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'analisis'             }, () => onChange())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'envios_whatsapp'      }, () => onChange())
         .subscribe();
       return () => sb.removeChannel(ch);
     }
@@ -271,6 +300,7 @@
       upsertClient, deleteClient,
       upsertProspect, deleteProspect,
       upsertTask, deleteTask, addComment,
+      upsertAnalisis, deleteAnalisis, addEnvio,
     };
   }
 })();

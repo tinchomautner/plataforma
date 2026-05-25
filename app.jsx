@@ -208,6 +208,7 @@ const ROUTE_PERMS = {
   'consult/metrics':  ['admin'],
   'max/usage':        ['admin','maximus'],
   'max/plan':         ['admin'],
+  'max/analisis':     ['admin','maximus'],
   'max/prospects':    ['admin','maximus'],
   'max/tasks':        ['admin','maximus'],
 };
@@ -299,7 +300,7 @@ const initialState = () => {
   return {
     team: TEAM_SEED,
     consultora: { cards: seedConsultora() },
-    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks() },
+    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [] },
   };
 };
 
@@ -343,6 +344,11 @@ function reducer(state, action) {
     case 'TASK_MOVE':      return { ...state, maximus: { ...state.maximus, tasks: state.maximus.tasks.map(t => t.id === action.id ? { ...t, estado: action.estado } : t) } };
     case 'TASK_DELETE':    return { ...state, maximus: { ...state.maximus, tasks: state.maximus.tasks.filter(t => t.id !== action.id) } };
     case 'TASK_COMMENT':   return { ...state, maximus: { ...state.maximus, tasks: state.maximus.tasks.map(t => t.id === action.id ? { ...t, comentarios: [...(t.comentarios||[]), action.c] } : t) } };
+
+    /* Análisis / envíos */
+    case 'ANALISIS_ADD':    return { ...state, maximus: { ...state.maximus, analisis: [action.a, ...(state.maximus.analisis||[])] } };
+    case 'ANALISIS_DELETE': return { ...state, maximus: { ...state.maximus, analisis: (state.maximus.analisis||[]).filter(a => a.id !== action.id) } };
+    case 'ENVIO_ADD':       return { ...state, maximus: { ...state.maximus, envios: [action.e, ...(state.maximus.envios||[])] } };
 
     /* Team */
     case 'TEAM_UPSERT': {
@@ -526,6 +532,7 @@ const NAV = [
   { group: 'MaximUs', items: [
     { id: 'max/usage',     label: 'Uso clientes',    icon: 'trend' },
     { id: 'max/plan',      label: 'Plan comercial',  icon: 'flag' },
+    { id: 'max/analisis',  label: 'Análisis + WhatsApp', icon: 'send' },
     { id: 'max/prospects', label: 'Pipeline ventas', icon: 'pipeline' },
     { id: 'max/tasks',     label: 'Tareas equipo',   icon: 'task' },
   ]},
@@ -1658,6 +1665,274 @@ function MaximusUsage() {
   );
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   MAXIMUS — ANÁLISIS Y ENVÍOS (broadcast por holdings)
+   ───────────────────────────────────────────────────────────────────── */
+const phoneClean = (t) => (t || '').replace(/[^\d]/g, '');
+const renderTemplate = (tpl, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replaceAll('{' + k + '}', v || ''), tpl);
+
+function MaximusAnalisis() {
+  const { state, dispatch, me } = useApp();
+  const [tab, setTab] = useState('enviar'); // enviar | holdings | historial
+
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Análisis + WhatsApp"
+        subtitle="Subí un análisis y mandalo por WhatsApp a los clientes que tienen ese activo."
+        actions={<>
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+            {[['enviar','Enviar análisis'],['holdings','Holdings'],['historial','Historial']].map(([id,label]) => (
+              <button key={id} onClick={() => setTab(id)}
+                className={`px-3 py-1.5 text-xs rounded-md ${tab===id ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
+            ))}
+          </div>
+        </>}
+      />
+      <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto">
+        {tab === 'enviar'    && <EnviarAnalisis state={state} dispatch={dispatch} me={me} />}
+        {tab === 'holdings'  && <HoldingsClientes state={state} dispatch={dispatch} />}
+        {tab === 'historial' && <HistorialEnvios state={state} />}
+      </div>
+    </div>
+  );
+}
+
+function EnviarAnalisis({ state, dispatch, me }) {
+  const clients = state.maximus.clients;
+  // Catálogo de tickers que aparecen en algún cliente
+  const allTickers = useMemo(() => {
+    const s = new Set();
+    clients.forEach(c => (c.activos || []).forEach(t => s.add(String(t).trim().toUpperCase())));
+    return Array.from(s).sort();
+  }, [clients]);
+
+  const [ticker, setTicker] = useState('');
+  const [titulo, setTitulo] = useState('');
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [mensaje, setMensaje] = useState('Hola {contacto}, te comparto el análisis actualizado de {ticker}.\n\n{titulo}\nPDF: {link}\n\nSaludos.');
+  const [enviados, setEnviados] = useState(new Set()); // ids de clientes a los que ya disparé wa.me en esta sesión
+
+  const destinatarios = useMemo(() => {
+    if (!ticker) return [];
+    const t = ticker.trim().toUpperCase();
+    return clients.filter(c => (c.activos || []).map(x => String(x).trim().toUpperCase()).includes(t));
+  }, [clients, ticker]);
+
+  const conTelefono   = destinatarios.filter(c => phoneClean(c.telefono).length >= 8);
+  const sinTelefono   = destinatarios.length - conTelefono.length;
+
+  const generarMensajeCliente = (c) => {
+    const vars = {
+      contacto: c.contacto || c.cliente || '',
+      cliente: c.cliente || '',
+      ticker: ticker.toUpperCase(),
+      titulo: titulo,
+      link: pdfUrl,
+      yo: me.name.split(' ')[0],
+    };
+    return renderTemplate(mensaje, vars);
+  };
+
+  const enviarUno = (c) => {
+    const num = phoneClean(c.telefono);
+    if (!num) return;
+    const text = generarMensajeCliente(c);
+    const url = `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+    // Registrar el envío (idempotente local)
+    setEnviados(s => new Set([...s, c.id]));
+  };
+
+  const guardarAnalisisYRegistrar = () => {
+    if (!ticker || !titulo || !pdfUrl) return;
+    // 1) Guardar el análisis en DB (1 vez)
+    const analisisId = 'an_' + uid();
+    dispatch({ type: 'ANALISIS_ADD', a: { id: analisisId, ticker: ticker.toUpperCase(), titulo, pdfUrl, uploadedBy: me.id, uploadedAt: now() } });
+    // 2) Registrar un envío por cada cliente al que se le mandó
+    conTelefono.forEach(c => {
+      if (!enviados.has(c.id)) return;
+      dispatch({ type: 'ENVIO_ADD', e: { id: 'env_' + uid(), analisisId, clienteId: c.id, contacto: c.contacto, telefono: c.telefono, mensaje: generarMensajeCliente(c), enviadoBy: me.id } });
+    });
+    // Reset
+    setTicker(''); setTitulo(''); setPdfUrl(''); setEnviados(new Set());
+    alert(`Análisis registrado. Se trackeó el envío a ${conTelefono.filter(c => enviados.has(c.id)).length} clientes.`);
+  };
+
+  return (
+    <div className="space-y-5">
+      <Panel title="1. Datos del análisis">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4">
+          <Field label="Ticker / activo" hint={allTickers.length > 0 ? `Conocidos: ${allTickers.slice(0,10).join(', ')}${allTickers.length>10?'…':''}` : 'Definí activos en los clientes (tab Holdings)'}>
+            <input list="tickers-dl" value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} placeholder="AAPL" />
+            <datalist id="tickers-dl">{allTickers.map(t => <option key={t} value={t} />)}</datalist>
+          </Field>
+          <Field label="Título del análisis">
+            <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Apple 1T26 — Resultados" />
+          </Field>
+          <Field label="Link del PDF" hint="ej. https://mxmus.app/storage/pdfs/xxx.pdf">
+            <input value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="https://..." />
+          </Field>
+        </div>
+        <Field label="Mensaje (con variables {contacto} {cliente} {ticker} {titulo} {link} {yo})">
+          <textarea rows={5} value={mensaje} onChange={e => setMensaje(e.target.value)} />
+        </Field>
+      </Panel>
+
+      <Panel title={`2. Destinatarios (${conTelefono.length}${sinTelefono > 0 ? ` · ${sinTelefono} sin teléfono` : ''})`}>
+        {!ticker ? (
+          <div className="text-sm text-muted italic px-2 py-4">Elegí un ticker arriba para ver a quién mandárselo.</div>
+        ) : destinatarios.length === 0 ? (
+          <div className="text-sm text-muted italic px-2 py-4">Ningún cliente tiene <b>{ticker}</b> en su cartera. Cargá holdings en el tab "Holdings" o en el editor de cliente.</div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-[12px] text-muted">Click <b>Enviar</b> en cada uno: se abre WhatsApp Web con el mensaje pre-armado. Adjuntás el PDF (o el link ya viene). Cuando terminás de mandarlos todos, podés guardar el análisis y registrar el historial con el botón al final.</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2 pr-2">Cliente</th>
+                    <th className="pr-2">Contacto</th>
+                    <th className="pr-2">Teléfono</th>
+                    <th className="pr-2">Activos</th>
+                    <th className="pr-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {destinatarios.map(c => {
+                    const tel = phoneClean(c.telefono);
+                    const yaEnviado = enviados.has(c.id);
+                    return (
+                      <tr key={c.id} className="border-t border-line">
+                        <td className="py-2.5 pr-2 font-medium text-ink">{c.cliente}</td>
+                        <td className="pr-2 text-ink-2">{c.contacto || '—'}</td>
+                        <td className="pr-2 text-ink-2 tabular-nums">{c.telefono || <span className="text-bad text-[11px]">sin teléfono</span>}</td>
+                        <td className="pr-2 text-[11px] text-muted">{(c.activos || []).join(', ')}</td>
+                        <td className="pr-2">
+                          {tel ? (
+                            <button onClick={() => enviarUno(c)}
+                              className={`px-3 py-1.5 text-[11px] rounded border flex items-center gap-1.5 transition ${yaEnviado ? 'bg-ok/10 text-ok border-ok/30' : 'bg-gold/15 text-gold border-gold/40 hover:bg-gold/25'}`}>
+                              <Icon name={yaEnviado ? 'check' : 'send'} size={12} />
+                              {yaEnviado ? 'Enviado' : 'Enviar'}
+                            </button>
+                          ) : <span className="text-[11px] text-muted italic">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end pt-3 border-t border-line">
+              <Btn onClick={guardarAnalisisYRegistrar} disabled={enviados.size === 0 || !titulo || !pdfUrl}>
+                <Icon name="check" size={14} />Guardar análisis y registrar {enviados.size} envío{enviados.size !== 1 ? 's' : ''}
+              </Btn>
+            </div>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function HoldingsClientes({ state, dispatch }) {
+  const clients = state.maximus.clients;
+  const [search, setSearch] = useState('');
+  const filtered = clients.filter(c =>
+    !search || `${c.cliente} ${(c.activos || []).join(' ')}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const updateActivos = (c, newActivos) => {
+    const { _cat, ...sanitized } = c;
+    dispatch({ type: 'CLIENT_UPSERT', client: { ...sanitized, activos: newActivos } });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Panel title={`Holdings por cliente (${filtered.length} de ${clients.length})`} action={
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente o ticker…" className="!py-1.5 !text-xs" style={{ width: 240 }} />
+      }>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+              <tr>
+                <th className="py-2 pr-2">Cliente</th>
+                <th className="pr-2">Teléfono</th>
+                <th className="pr-2 w-1/2">Activos (separados por coma)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <tr key={c.id} className="border-t border-line">
+                  <td className="py-2.5 pr-2 font-medium text-ink">{c.cliente}</td>
+                  <td className="pr-2 text-ink-2 text-[11px]">{c.telefono || <span className="text-muted italic">sin teléfono</span>}</td>
+                  <td className="pr-2">
+                    <input
+                      defaultValue={Array.isArray(c.activos) ? c.activos.join(', ') : ''}
+                      onBlur={(e) => {
+                        const newAct = e.target.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+                        const same = JSON.stringify(newAct) === JSON.stringify(c.activos || []);
+                        if (!same) updateActivos(c, newAct);
+                      }}
+                      placeholder="AAPL, MSFT, TSLA"
+                      className="!text-[12px] !py-1.5"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function HistorialEnvios({ state }) {
+  const envios = state.maximus.envios || [];
+  const analisis = state.maximus.analisis || [];
+  const clients = state.maximus.clients;
+  const team = state.team;
+  if (envios.length === 0) {
+    return <EmptyState title="Sin envíos todavía" hint="Mandá un análisis desde el tab 'Enviar análisis' y va a aparecer acá." />;
+  }
+  return (
+    <Panel title={`Historial de envíos (${envios.length})`}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+            <tr>
+              <th className="py-2 pr-2">Fecha</th>
+              <th className="pr-2">Análisis</th>
+              <th className="pr-2">Cliente</th>
+              <th className="pr-2">Contacto</th>
+              <th className="pr-2">Enviado por</th>
+              <th className="pr-2">PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            {envios.map(e => {
+              const a = analisis.find(x => x.id === e.analisisId);
+              const c = clients.find(x => x.id === e.clienteId);
+              const u = team.find(x => x.id === e.enviadoBy);
+              return (
+                <tr key={e.id} className="border-t border-line">
+                  <td className="py-2 pr-2 text-ink-2 tabular-nums">{fmtDateTime(e.enviadoAt)}</td>
+                  <td className="pr-2">{a ? <span><b>{a.ticker}</b> · {a.titulo}</span> : '—'}</td>
+                  <td className="pr-2 font-medium">{c?.cliente || e.clienteId}</td>
+                  <td className="pr-2 text-ink-2">{e.contacto || '—'}</td>
+                  <td className="pr-2">{u ? <div className="flex items-center gap-1.5"><Avatar user={u} size={18} />{u.name.split(' ')[0]}</div> : '—'}</td>
+                  <td className="pr-2">{a?.pdfUrl ? <a href={a.pdfUrl} target="_blank" className="text-gold hover:underline text-[11px]">PDF</a> : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
 /* Nota editable inline para Plan comercial */
 function NotaPlanEditable({ value, onSave, placeholder = 'Agregar motivo del contacto…' }) {
   const [editing, setEditing] = useState(false);
@@ -1972,6 +2247,12 @@ function ClientEditor({ open, client, onClose, onSave, onDelete }) {
         </Field>
         <Field label="Mes de renovación" hint="Formato Mes Año (ej. Diciembre 2026)">
           <input type="month" value={form.fecha_renovacion || ''} onChange={e => setForm({ ...form, fecha_renovacion: e.target.value })} />
+        </Field>
+        <Field label="Teléfono (WhatsApp)" hint="Formato internacional: +598 99 511 008">
+          <input value={form.telefono || ''} onChange={e => setForm({ ...form, telefono: e.target.value })} placeholder="+598 99 511 008" />
+        </Field>
+        <Field label="Activos en cartera" hint="Tickers separados por coma: AAPL, MSFT, TSLA">
+          <input value={Array.isArray(form.activos) ? form.activos.join(', ') : ''} onChange={e => setForm({ ...form, activos: e.target.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) })} placeholder="AAPL, MSFT, TSLA" />
         </Field>
       </div>
 
@@ -2492,6 +2773,9 @@ function useStore() {
         }
         case 'TASK_DELETE':    SUPA.deleteTask(action.id); break;
         case 'TASK_COMMENT':   SUPA.addComment(action.id, action.c); break;
+        case 'ANALISIS_ADD':    SUPA.upsertAnalisis(action.a); break;
+        case 'ANALISIS_DELETE': SUPA.deleteAnalisis(action.id); break;
+        case 'ENVIO_ADD':       SUPA.addEnvio(action.e); break;
       }
     } catch (e) { console.error('Supabase persist error', e); }
   }, [supaReady]);
@@ -2538,6 +2822,7 @@ function App() {
     case 'consult/metrics':  view = <ConsultoraMetrics />;  break;
     case 'max/usage':        view = <MaximusUsage />;       break;
     case 'max/plan':         view = <MaximusPlanComercial />; break;
+    case 'max/analisis':     view = <MaximusAnalisis />;    break;
     case 'max/prospects':    view = <MaximusProspects />;   break;
     case 'max/tasks':        view = <MaximusTasks />;       break;
     default:                 view = <ConsultoraKanban />;

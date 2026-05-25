@@ -53,13 +53,21 @@
     });
     const mapProspect = (r) => ({
       id: r.id, empresa: r.empresa, contacto: r.contacto, producto: r.producto,
+      pais: r.pais || '',
       notas: r.notas, proxSeguimiento: r.prox_seguimiento ? new Date(r.prox_seguimiento).getTime() : null,
       estado: r.estado, clienteCompartido: r.cliente_compartido || '',
+      asignado_a: r.asignado_a || null,
+      jiraKey: r.jira_key || '',
+      jiraEstado: r.jira_estado || '',
     });
     const mapProspectOut = (p) => ({
       id: p.id, empresa: p.empresa, contacto: p.contacto, producto: p.producto,
+      pais: p.pais || null,
       notas: p.notas ?? '', prox_seguimiento: p.proxSeguimiento ? new Date(p.proxSeguimiento).toISOString() : null,
       estado: p.estado, cliente_compartido: p.clienteCompartido || null,
+      asignado_a: p.asignado_a || null,
+      jira_key: p.jiraKey || null,
+      jira_estado: p.jiraEstado || null,
     });
     const mapTask = (r) => ({
       id: r.id, titulo: r.titulo, descripcion: r.descripcion, asignados: r.asignados || [],
@@ -164,12 +172,23 @@
           : (localAsig[c.id] || null),
       }));
 
+      // Fallback asignaciones de prospects
+      const localAsigProspects = (() => {
+        try { return JSON.parse(localStorage.getItem('plataforma-asig-prospects-v1') || '{}'); }
+        catch { return {}; }
+      })();
+      const prospectsMapped = (prospects.data || []).map(r => {
+        const p = mapProspect(r);
+        if (!p.asignado_a && localAsigProspects[p.id]) p.asignado_a = localAsigProspects[p.id];
+        return p;
+      });
+
       return {
         team: teamMapped,
         consultora: { cards: (cards.data || []).map(mapCard) },
         maximus: {
           clients: clientsMapped,
-          prospects: (prospects.data || []).map(mapProspect),
+          prospects: prospectsMapped,
           tasks: tasksMapped,
         }
       };
@@ -199,7 +218,25 @@
       return res;
     }
     async function deleteClient(id)   { return sb.from('maximus_clients').delete().eq('id', id); }
-    async function upsertProspect(p)  { return sb.from('maximus_prospects').upsert(mapProspectOut(p)); }
+    async function upsertProspect(p)  {
+      const out = mapProspectOut(p);
+      // Persistir asignación en localStorage SIEMPRE como fallback
+      if (out.asignado_a !== undefined) {
+        try {
+          const map = JSON.parse(localStorage.getItem('plataforma-asig-prospects-v1') || '{}');
+          if (out.asignado_a) map[out.id] = out.asignado_a;
+          else delete map[out.id];
+          localStorage.setItem('plataforma-asig-prospects-v1', JSON.stringify(map));
+        } catch {}
+      }
+      const res = await sb.from('maximus_prospects').upsert(out);
+      // Si falla por columnas nuevas, reintentar sin ellas
+      if (res.error && /asignado_a|jira_|pais/.test(res.error.message || '')) {
+        const { asignado_a, jira_key, jira_estado, pais, ...without } = out;
+        return sb.from('maximus_prospects').upsert(without);
+      }
+      return res;
+    }
     async function deleteProspect(id) { return sb.from('maximus_prospects').delete().eq('id', id); }
     async function upsertTask(t)      { return sb.from('maximus_tasks').upsert(mapTaskOut(t)); }
     async function deleteTask(id)     { return sb.from('maximus_tasks').delete().eq('id', id); }

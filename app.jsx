@@ -1653,10 +1653,10 @@ function MaximusUsage() {
 function MaximusPlanComercial() {
   const { state, dispatch, me } = useApp();
   const clients = state.maximus.clients;
-  // Admins de la consultora (Mautner + de Haedo)
+  const prospects = state.maximus.prospects;
   const admins = state.team.filter(u => u.perms === 'admin');
-  const [filterAsignacion, setFilterAsignacion] = useState('todos'); // 'todos'|'mio'|'sin'|<userId>
-  const [filterCategoria, setFilterCategoria] = useState(''); // ''|Contactar|Armar Reunión
+  const [filterAsignacion, setFilterAsignacion] = useState('todos');
+  const [filterCategoria, setFilterCategoria] = useState('');
   const [search, setSearch] = useState('');
 
   const candidatos = useMemo(() => {
@@ -1667,6 +1667,8 @@ function MaximusPlanComercial() {
       })
       .map(c => ({ ...c, _cat: categoriaAccion(c.accion) }));
   }, [clients]);
+
+  const prospectsSemana = useMemo(() => prospects.filter(p => p.jiraEstado === 'Contactar esta semana'), [prospects]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
@@ -1696,6 +1698,12 @@ function MaximusPlanComercial() {
   };
   const marcarHecho = (client) => {
     dispatch({ type: 'CLIENT_UPSERT', client: { ...sanitize(client), accion: 'Todo OK', asignado_a: null } });
+  };
+  const setProspectAsignado = (p, userId) => {
+    dispatch({ type: 'PROS_UPDATE', p: { ...p, asignado_a: userId } });
+  };
+  const moverProspect = (p, nuevoEstado) => {
+    dispatch({ type: 'PROS_UPDATE', p: { ...p, estado: nuevoEstado, jiraEstado: nuevoEstado === 'contactado' ? 'Volver a contactar' : p.jiraEstado, asignado_a: null } });
   };
 
   return (
@@ -1730,6 +1738,62 @@ function MaximusPlanComercial() {
             <StatCard key={a.id} title={a.name.split(' ')[0]} value={stats.byAdmin[a.id]?.count || 0} hint={`asignados a ${a.name.split(' ')[0]}`} />
           ))}
         </div>
+
+        {prospectsSemana.length > 0 && (
+          <Panel title={`Prospects · Contactar esta semana (${prospectsSemana.length})`}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2 pr-2">Empresa</th>
+                    <th className="pr-2">Contacto</th>
+                    <th className="pr-2">País</th>
+                    <th className="pr-2">Jira</th>
+                    <th className="pr-2">Asignado</th>
+                    <th className="pr-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {prospectsSemana.map(p => {
+                    const asig = admins.find(a => a.id === p.asignado_a);
+                    return (
+                      <tr key={p.id} className="border-t border-line hover:bg-surface-2/40">
+                        <td className="py-2.5 pr-2 font-medium text-ink">{p.empresa}</td>
+                        <td className="pr-2 text-ink-2">{p.contacto || '—'}</td>
+                        <td className="pr-2 text-ink-2">{p.pais || '—'}</td>
+                        <td className="pr-2 text-[10px] text-muted font-mono">{p.jiraKey || '—'}</td>
+                        <td className="pr-2">
+                          {asig ? (
+                            <div className="flex items-center gap-1.5">
+                              <Avatar user={asig} size={20} />
+                              <span className="text-xs text-ink-2">{asig.name.split(' ')[0]}</span>
+                            </div>
+                          ) : <span className="text-[11px] text-muted italic">sin asignar</span>}
+                        </td>
+                        <td className="pr-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {admins.map(a => (
+                              <button key={a.id} onClick={() => setProspectAsignado(p, a.id)}
+                                className={`px-2 py-1 text-[11px] rounded border transition ${p.asignado_a === a.id ? 'bg-gold/10 text-gold border-gold/40' : 'border-line text-ink-2 hover:border-gold/40 hover:text-ink'}`}>
+                                {a.name.split(' ')[0]}
+                              </button>
+                            ))}
+                            {p.asignado_a && (
+                              <button onClick={() => setProspectAsignado(p, null)} className="px-2 py-1 text-[11px] rounded border border-line text-muted hover:text-bad hover:border-bad/40" title="Quitar asignación">×</button>
+                            )}
+                            <button onClick={() => moverProspect(p, 'contactado')} className="px-2 py-1 text-[11px] rounded bg-ok/10 text-ok border border-ok/30 hover:bg-ok/20" title="Marcar como contactado (pasa a Volver a contactar)">
+                              <Icon name="check" size={11} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        )}
 
         <Panel title={`Clientes a contactar (${filtered.length} de ${candidatos.length})`}>
           {filtered.length === 0 ? <EmptyState title="Sin clientes pendientes" hint="Modificá los filtros o cargá nuevas acciones en Uso clientes." /> : (

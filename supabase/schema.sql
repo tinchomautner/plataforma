@@ -84,10 +84,14 @@ create table if not exists public.maximus_prospects (
   empresa            text not null,
   contacto           text,
   producto           text,
+  pais               text,
   notas              text default '',
   prox_seguimiento   timestamptz,
   estado             text not null default 'por_contactar',
-  cliente_compartido text
+  cliente_compartido text,
+  asignado_a         text references public.team(id),
+  jira_key           text,
+  jira_estado        text
 );
 
 -- MaximUs — tareas equipo (asignación múltiple en jsonb)

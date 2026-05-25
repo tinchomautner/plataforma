@@ -120,6 +120,13 @@ const getInstrumento = (card) => {
   return 'Otros';
 };
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const formatRenovacion = (yyyymm) => {
+  if (!yyyymm) return '—';
+  const [y, m] = String(yyyymm).split('-');
+  const mi = parseInt(m, 10) - 1;
+  if (isNaN(mi) || mi < 0 || mi > 11) return yyyymm;
+  return `${MONTHS_ES[mi]} ${y}`;
+};
 const monthKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const monthLabel = (ts) => { const d = new Date(ts); return `${MONTHS_ES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; };
 
@@ -1584,6 +1591,7 @@ function MaximusUsage() {
                     <th className="pr-2 text-right">Sin login</th>
                     <th className="pr-2 text-right">Sin pedido</th>
                     <th className="pr-2">Acción sugerida</th>
+                    <th className="pr-2">Renovación</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -1617,6 +1625,7 @@ function MaximusUsage() {
                             );
                           })()}
                         </td>
+                        <td className="pr-2 text-ink-2 tabular-nums">{formatRenovacion(c.fecha_renovacion)}</td>
                         <td><Icon name="chevR" size={14} className="text-muted" /></td>
                       </tr>
                     );
@@ -1949,6 +1958,9 @@ function ClientEditor({ open, client, onClose, onSave, onDelete }) {
             <option value="amarillo">Amarillo — atención</option>
             <option value="rojo">Rojo — riesgo</option>
           </select>
+        </Field>
+        <Field label="Mes de renovación" hint="Formato Mes Año (ej. Diciembre 2026)">
+          <input type="month" value={form.fecha_renovacion || ''} onChange={e => setForm({ ...form, fecha_renovacion: e.target.value })} />
         </Field>
       </div>
 

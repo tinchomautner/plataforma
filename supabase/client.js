@@ -221,8 +221,8 @@
         } catch {}
       }
       const res = await sb.from('maximus_clients').upsert({ id, ...rest });
-      if (res.error && /asignado_a|nota_plan/.test(res.error.message || '')) {
-        const { asignado_a, nota_plan, ...without } = rest;
+      if (res.error && /asignado_a|nota_plan|fecha_renovacion/.test(res.error.message || '')) {
+        const { asignado_a, nota_plan, fecha_renovacion, ...without } = rest;
         return sb.from('maximus_clients').upsert({ id, ...without });
       }
       return res;

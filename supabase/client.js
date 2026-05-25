@@ -117,11 +117,24 @@
         nonAssignable: t.non_assignable != null ? !!t.non_assignable : NON_ASSIGNABLE_DEFAULT.includes(t.id),
       }));
 
+      // Fallback: si la columna asignado_a no existe en Supabase aún,
+      // usar el override de localStorage para no perder las asignaciones.
+      const localAsig = (() => {
+        try { return JSON.parse(localStorage.getItem('plataforma-asignaciones-v1') || '{}'); }
+        catch { return {}; }
+      })();
+      const clientsMapped = (clients.data || []).map(c => ({
+        ...c,
+        asignado_a: c.asignado_a !== undefined && c.asignado_a !== null
+          ? c.asignado_a
+          : (localAsig[c.id] || null),
+      }));
+
       return {
         team: teamMapped,
         consultora: { cards: (cards.data || []).map(mapCard) },
         maximus: {
-          clients: clients.data || [],
+          clients: clientsMapped,
           prospects: (prospects.data || []).map(mapProspect),
           tasks: tasksMapped,
         }
@@ -133,8 +146,16 @@
     async function deleteCard(id)     { return sb.from('consultora_cards').delete().eq('id', id); }
     async function upsertClient(c)    {
       const { id, ...rest } = c;
-      // Filtrar campos que el cliente local agrega y no son columnas (defensivo)
       delete rest._cat;
+      // Persistir asignación en localStorage SIEMPRE (fallback si la columna no existe)
+      if (rest.asignado_a !== undefined) {
+        try {
+          const map = JSON.parse(localStorage.getItem('plataforma-asignaciones-v1') || '{}');
+          if (rest.asignado_a) map[id] = rest.asignado_a;
+          else delete map[id];
+          localStorage.setItem('plataforma-asignaciones-v1', JSON.stringify(map));
+        } catch {}
+      }
       const res = await sb.from('maximus_clients').upsert({ id, ...rest });
       // Si falla por columna 'asignado_a' inexistente, reintentar sin ella
       if (res.error && /asignado_a/.test(res.error.message || '')) {

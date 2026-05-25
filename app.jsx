@@ -218,13 +218,16 @@ const CONSULTORA_COLS = [
   { id: 'done',       label: 'Listo' },
 ];
 
+/* Columnas del Kanban de Prospects — espejan los estados del Jira */
 const PROSPECT_COLS = [
-  { id: 'por_contactar', label: 'Por contactar' },
-  { id: 'contactado',    label: 'Contactado' },
-  { id: 'negociacion',   label: 'En negociación' },
-  { id: 'propuesta',     label: 'Propuesta enviada' },
-  { id: 'ganado',        label: 'Ganado' },
-  { id: 'perdido',       label: 'Perdido' },
+  { id: 'a_contactar',           label: 'A contactar' },
+  { id: 'contactar_esta_semana', label: 'Contactar esta semana' },
+  { id: 'volver_a_contactar',    label: 'Volver a contactar' },
+  { id: 'esperando_respuesta',   label: 'Esperando respuesta' },
+  { id: 'reunion_agendada',      label: 'Reunión agendada' },
+  { id: 'probando_servicio',     label: 'Probando servicio' },
+  { id: 'cliente',               label: 'Cliente' },
+  { id: 'no_les_interesa',       label: 'No les interesa' },
 ];
 
 const TASK_COLS = [
@@ -1687,7 +1690,7 @@ function MaximusPlanComercial() {
       .map(c => ({ ...c, _cat: categoriaAccion(c.accion) }));
   }, [clients]);
 
-  const prospectsSemana = useMemo(() => prospects.filter(p => p.jiraEstado === 'Contactar esta semana'), [prospects]);
+  const prospectsSemana = useMemo(() => prospects.filter(p => p.estado === 'contactar_esta_semana'), [prospects]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
@@ -1722,7 +1725,7 @@ function MaximusPlanComercial() {
     dispatch({ type: 'PROS_UPDATE', p: { ...p, asignado_a: userId } });
   };
   const moverProspect = (p, nuevoEstado) => {
-    dispatch({ type: 'PROS_UPDATE', p: { ...p, estado: nuevoEstado, jiraEstado: nuevoEstado === 'contactado' ? 'Volver a contactar' : p.jiraEstado, asignado_a: null } });
+    dispatch({ type: 'PROS_UPDATE', p: { ...p, estado: nuevoEstado, asignado_a: null } });
   };
   const setNotaPlanCliente = (c, nota) => {
     dispatch({ type: 'CLIENT_UPSERT', client: { ...sanitize(c), nota_plan: nota } });
@@ -1809,7 +1812,7 @@ function MaximusPlanComercial() {
                             {p.asignado_a && (
                               <button onClick={() => setProspectAsignado(p, null)} className="px-2 py-1 text-[11px] rounded border border-line text-muted hover:text-bad hover:border-bad/40" title="Quitar asignación">×</button>
                             )}
-                            <button onClick={() => moverProspect(p, 'contactado')} className="px-2 py-1 text-[11px] rounded bg-ok/10 text-ok border border-ok/30 hover:bg-ok/20" title="Marcar como contactado (pasa a Volver a contactar)">
+                            <button onClick={() => moverProspect(p, 'volver_a_contactar')} className="px-2 py-1 text-[11px] rounded bg-ok/10 text-ok border border-ok/30 hover:bg-ok/20" title="Marcar como contactado (pasa a 'Volver a contactar')">
                               <Icon name="check" size={11} />
                             </button>
                           </div>
@@ -2046,7 +2049,7 @@ function MaximusProspects() {
 
   const byCol = useMemo(() => {
     const m = Object.fromEntries(PROSPECT_COLS.map(c => [c.id, []]));
-    filtered.forEach(p => { (m[p.estado] || m.por_contactar).push(p); });
+    filtered.forEach(p => { (m[p.estado] || m.a_contactar).push(p); });
     return m;
   }, [filtered]);
 
@@ -2097,7 +2100,7 @@ function MaximusProspects() {
         prospect={editing}
         clientNames={clientNames}
         onClose={() => { setEditing(null); setCreating(false); }}
-        onSave={(p) => { if (p.id) dispatch({ type: 'PROS_UPDATE', p }); else dispatch({ type: 'PROS_ADD', p: { ...p, id: uid(), estado: p.estado || 'por_contactar' } }); setEditing(null); setCreating(false); }}
+        onSave={(p) => { if (p.id) dispatch({ type: 'PROS_UPDATE', p }); else dispatch({ type: 'PROS_ADD', p: { ...p, id: uid(), estado: p.estado || 'a_contactar' } }); setEditing(null); setCreating(false); }}
         onDelete={(id) => { dispatch({ type: 'PROS_DELETE', id }); setEditing(null); }}
       />
     </div>
@@ -2146,7 +2149,7 @@ function ProspectCard({ p, onClick }) {
 
 function ProspectEditor({ open, prospect, clientNames, onClose, onSave, onDelete }) {
   const isNew = !prospect;
-  const blank = { empresa:'', contacto:'', producto:'MaximUs Pro', notas:'', proxSeguimiento: now() + 3*DAY, estado:'por_contactar', clienteCompartido:'' };
+  const blank = { empresa:'', contacto:'', producto:'MaximUs Pro', notas:'', proxSeguimiento: now() + 3*DAY, estado:'a_contactar', clienteCompartido:'' };
   const [form, setForm] = useState(prospect || blank);
   useEffect(() => { if (open) setForm(prospect || blank); }, [open, prospect]);
   if (!open) return null;

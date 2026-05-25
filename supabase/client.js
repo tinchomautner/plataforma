@@ -51,11 +51,20 @@
       estado: c.estado, created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
       completed_at: c.completedAt ? new Date(c.completedAt).toISOString() : null,
     });
+    /* Migración legacy → nuevos estados del Jira */
+    const LEGACY_TO_NEW = {
+      por_contactar: 'a_contactar',
+      contactado:    'volver_a_contactar',
+      negociacion:   'reunion_agendada',
+      propuesta:     'reunion_agendada',
+      ganado:        'cliente',
+      perdido:       'no_les_interesa',
+    };
     const mapProspect = (r) => ({
       id: r.id, empresa: r.empresa, contacto: r.contacto, producto: r.producto,
       pais: r.pais || '',
       notas: r.notas, proxSeguimiento: r.prox_seguimiento ? new Date(r.prox_seguimiento).getTime() : null,
-      estado: r.estado, clienteCompartido: r.cliente_compartido || '',
+      estado: LEGACY_TO_NEW[r.estado] || r.estado, clienteCompartido: r.cliente_compartido || '',
       asignado_a: r.asignado_a || null,
       jiraKey: r.jira_key || '',
       jiraEstado: r.jira_estado || '',

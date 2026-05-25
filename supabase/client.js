@@ -92,7 +92,41 @@
       return out;
     }
 
+    /* Migra asignaciones del localStorage a Supabase si la columna
+       asignado_a ya existe. Se ejecuta una vez por sesión. */
+    let _migrated = false;
+    async function migrateLocalAsignaciones() {
+      if (_migrated) return;
+      _migrated = true;
+      let localAsig;
+      try { localAsig = JSON.parse(localStorage.getItem('plataforma-asignaciones-v1') || '{}'); }
+      catch { return; }
+      if (!localAsig || Object.keys(localAsig).length === 0) return;
+      // Probe: verificar si la columna asignado_a existe en la tabla
+      const probe = await sb.from('maximus_clients').select('id, asignado_a').limit(1);
+      if (probe.error) return; // error inesperado
+      // Si la columna no existe, Supabase devuelve error PGRST204 o la key viene undefined
+      const colExists = probe.data?.[0] && 'asignado_a' in probe.data[0];
+      if (!colExists) return;
+      // Migrar cada asignación
+      const entries = Object.entries(localAsig);
+      let ok = 0;
+      for (const [clientId, userId] of entries) {
+        const r = await sb.from('maximus_clients').update({ asignado_a: userId }).eq('id', clientId);
+        if (!r.error) ok++;
+      }
+      if (ok === entries.length) {
+        try { localStorage.removeItem('plataforma-asignaciones-v1'); } catch {}
+        console.log(`[plataforma] ${ok} asignaciones migradas a Supabase y localStorage limpiado`);
+      } else {
+        console.warn(`[plataforma] Migradas ${ok}/${entries.length} asignaciones — localStorage queda como fallback`);
+      }
+    }
+
     async function fetchAll() {
+      // Intentar migrar asignaciones locales antes de hidratar
+      migrateLocalAsignaciones().catch(() => {});
+
       const [team, cards, clients, prospects, tasks, comments] = await Promise.all([
         selectAll('team'),
         selectAll('consultora_cards'),

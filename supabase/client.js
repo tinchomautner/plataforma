@@ -131,7 +131,18 @@
     /* upsert / delete por tabla canónica */
     async function upsertCard(c)      { return sb.from('consultora_cards').upsert(mapCardOut(c)); }
     async function deleteCard(id)     { return sb.from('consultora_cards').delete().eq('id', id); }
-    async function upsertClient(c)    { const { id, ...rest } = c; return sb.from('maximus_clients').upsert({ id, ...rest }); }
+    async function upsertClient(c)    {
+      const { id, ...rest } = c;
+      // Filtrar campos que el cliente local agrega y no son columnas (defensivo)
+      delete rest._cat;
+      const res = await sb.from('maximus_clients').upsert({ id, ...rest });
+      // Si falla por columna 'asignado_a' inexistente, reintentar sin ella
+      if (res.error && /asignado_a/.test(res.error.message || '')) {
+        const { asignado_a, ...without } = rest;
+        return sb.from('maximus_clients').upsert({ id, ...without });
+      }
+      return res;
+    }
     async function deleteClient(id)   { return sb.from('maximus_clients').delete().eq('id', id); }
     async function upsertProspect(p)  { return sb.from('maximus_prospects').upsert(mapProspectOut(p)); }
     async function deleteProspect(id) { return sb.from('maximus_prospects').delete().eq('id', id); }

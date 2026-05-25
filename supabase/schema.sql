@@ -72,7 +72,8 @@ create table if not exists public.maximus_clients (
   ped_pct       int,
   max_pct       int,
   canal_dominante text,
-  semaforo      text
+  semaforo      text,
+  asignado_a    text references public.team(id)
 );
 create index if not exists idx_max_clients_semaforo on public.maximus_clients(semaforo);
 create index if not exists idx_max_clients_pais on public.maximus_clients(pais);

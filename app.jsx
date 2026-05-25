@@ -200,6 +200,7 @@ const ROUTE_PERMS = {
   'consult/calendar': ['admin','consultora'],
   'consult/metrics':  ['admin'],
   'max/usage':        ['admin','maximus'],
+  'max/plan':         ['admin'],
   'max/prospects':    ['admin','maximus'],
   'max/tasks':        ['admin','maximus'],
 };
@@ -514,6 +515,7 @@ const NAV = [
   ]},
   { group: 'MaximUs', items: [
     { id: 'max/usage',     label: 'Uso clientes',    icon: 'trend' },
+    { id: 'max/plan',      label: 'Plan comercial',  icon: 'flag' },
     { id: 'max/prospects', label: 'Pipeline ventas', icon: 'pipeline' },
     { id: 'max/tasks',     label: 'Tareas equipo',   icon: 'task' },
   ]},
@@ -1415,6 +1417,22 @@ function clientScore(c) {
 const SCORE_BADGE = { verde: 'sem-verde', amarillo: 'sem-amarillo', rojo: 'sem-rojo' };
 const SCORE_LABEL = { verde: 'Saludable', amarillo: 'Atención', rojo: 'Riesgo' };
 
+/* Categoriza la acción libre del cliente en 4 buckets ejecutables */
+const CATEGORIAS = ['Todo OK','Contactar','Armar Reunión','Otros'];
+const CATEGORIA_BADGE = {
+  'Todo OK':       'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+  'Contactar':     'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  'Armar Reunión': 'bg-blue-500/15 text-blue-700 border-blue-500/30',
+  'Otros':         'bg-slate-500/15 text-slate-600 border-slate-500/30',
+};
+function categoriaAccion(accion) {
+  const a = (accion || '').toLowerCase().trim();
+  if (!a || a === '-' || a.startsWith('todo ok')) return 'Todo OK';
+  if (/demo|reuni[oó]n|present|mostrar/.test(a)) return 'Armar Reunión';
+  if (/contact|estar atr[aá]s|atr[aá]s|llamar|entrarles|estamos atr|hay que estar/.test(a)) return 'Contactar';
+  return 'Otros';
+}
+
 function MaximusUsage() {
   const { state, dispatch } = useApp();
   const clients = state.maximus.clients;
@@ -1425,11 +1443,15 @@ function MaximusUsage() {
   const [filterPais, setFilterPais] = useState('');
   const [filterServicio, setFilterServicio] = useState('');
   const [filterSemaforo, setFilterSemaforo] = useState('');
-  const [filterAccion, setFilterAccion] = useState('');
+  const [filterCategoria, setFilterCategoria] = useState('');
 
   const paises = useMemo(() => Array.from(new Set(clients.map(c => c.pais).filter(Boolean))).sort(), [clients]);
   const servicios = useMemo(() => Array.from(new Set(clients.map(c => c.servicio).filter(Boolean))).sort(), [clients]);
-  const acciones = useMemo(() => Array.from(new Set(clients.map(c => c.accion).filter(Boolean).map(a => a.trim()))).sort(), [clients]);
+  const categoriaCount = useMemo(() => {
+    const m = Object.fromEntries(CATEGORIAS.map(k => [k, 0]));
+    clients.forEach(c => { m[categoriaAccion(c.accion)]++; });
+    return m;
+  }, [clients]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
@@ -1438,9 +1460,9 @@ function MaximusUsage() {
       (!filterPais || c.pais === filterPais) &&
       (!filterServicio || c.servicio === filterServicio) &&
       (!filterSemaforo || clientScore(c).color === filterSemaforo) &&
-      (!filterAccion || (c.accion || '').trim() === filterAccion)
+      (!filterCategoria || categoriaAccion(c.accion) === filterCategoria)
     );
-  }, [clients, search, filterPais, filterServicio, filterSemaforo, filterAccion]);
+  }, [clients, search, filterPais, filterServicio, filterSemaforo, filterCategoria]);
 
   const summary = useMemo(() => {
     const r = { verde: 0, amarillo: 0, rojo: 0, total: clients.length };
@@ -1538,9 +1560,9 @@ function MaximusUsage() {
                 <option value="amarillo">Amarillo</option>
                 <option value="rojo">Rojo</option>
               </select>
-              <select value={filterAccion} onChange={e => setFilterAccion(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 200 }} title="Filtrar por acción sugerida">
-                <option value="">Toda acción sugerida</option>
-                {acciones.map(a => <option key={a} value={a}>{a.length > 40 ? a.slice(0, 40) + '…' : a}</option>)}
+              <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 180 }} title="Filtrar por categoría de acción">
+                <option value="">Toda acción</option>
+                {CATEGORIAS.map(c => <option key={c} value={c}>{c} ({categoriaCount[c]})</option>)}
               </select>
             </div>
           }>
@@ -1577,7 +1599,12 @@ function MaximusUsage() {
                         <td className="pr-2 text-right tabular-nums">{c.max_logins_ytd ?? 0}</td>
                         <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_login||0) >= 60 ? 'text-bad' : (c.dias_sin_login||0) >= 30 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_login != null ? `${c.dias_sin_login}d` : '—'}</td>
                         <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_pedido||0) >= 120 ? 'text-bad' : (c.dias_sin_pedido||0) >= 60 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_pedido != null ? `${c.dias_sin_pedido}d` : '—'}</td>
-                        <td className="pr-2 text-ink-2 max-w-[200px]"><div className="line-clamp-1">{c.accion || '—'}</div></td>
+                        <td className="pr-2 max-w-[260px]">
+                          <div className="flex items-center gap-1.5">
+                            <Badge className={CATEGORIA_BADGE[categoriaAccion(c.accion)]}>{categoriaAccion(c.accion)}</Badge>
+                            <span className="text-ink-2 line-clamp-1 text-[11px]" title={c.accion}>{c.accion || ''}</span>
+                          </div>
+                        </td>
                         <td><Icon name="chevR" size={14} className="text-muted" /></td>
                       </tr>
                     );
@@ -1606,6 +1633,160 @@ function MaximusUsage() {
           setImporting(false);
         }}
       />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   MAXIMUS — PLAN COMERCIAL (solo admin)
+   Lista clientes con acción Contactar / Armar Reunión, asignable a admins
+   ───────────────────────────────────────────────────────────────────── */
+function MaximusPlanComercial() {
+  const { state, dispatch, me } = useApp();
+  const clients = state.maximus.clients;
+  // Admins de la consultora (Mautner + de Haedo)
+  const admins = state.team.filter(u => u.perms === 'admin');
+  const [filterAsignacion, setFilterAsignacion] = useState('todos'); // 'todos'|'mio'|'sin'|<userId>
+  const [filterCategoria, setFilterCategoria] = useState(''); // ''|Contactar|Armar Reunión
+  const [search, setSearch] = useState('');
+
+  const candidatos = useMemo(() => {
+    return clients
+      .filter(c => {
+        const cat = categoriaAccion(c.accion);
+        return cat === 'Contactar' || cat === 'Armar Reunión';
+      })
+      .map(c => ({ ...c, _cat: categoriaAccion(c.accion) }));
+  }, [clients]);
+
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    return candidatos.filter(c =>
+      (!s || `${c.cliente} ${c.contacto || ''} ${c.accion || ''}`.toLowerCase().includes(s)) &&
+      (!filterCategoria || c._cat === filterCategoria) &&
+      (filterAsignacion === 'todos' ||
+        (filterAsignacion === 'mio' && c.asignado_a === me.id) ||
+        (filterAsignacion === 'sin' && !c.asignado_a) ||
+        (c.asignado_a === filterAsignacion))
+    );
+  }, [candidatos, search, filterCategoria, filterAsignacion, me]);
+
+  const stats = useMemo(() => {
+    const r = { total: candidatos.length, sinAsignar: 0, byAdmin: {} };
+    admins.forEach(a => { r.byAdmin[a.id] = { user: a, count: 0 }; });
+    candidatos.forEach(c => {
+      if (!c.asignado_a) r.sinAsignar++;
+      else if (r.byAdmin[c.asignado_a]) r.byAdmin[c.asignado_a].count++;
+    });
+    return r;
+  }, [candidatos, admins]);
+
+  const sanitize = (c) => { const { _cat, ...rest } = c; return rest; };
+  const setAsignado = (client, userId) => {
+    dispatch({ type: 'CLIENT_UPSERT', client: { ...sanitize(client), asignado_a: userId } });
+  };
+  const marcarHecho = (client) => {
+    dispatch({ type: 'CLIENT_UPSERT', client: { ...sanitize(client), accion: 'Todo OK', asignado_a: null } });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Plan comercial"
+        subtitle="Clientes que requieren contacto o reunión. Asignar entre Mautner y de Haedo."
+        actions={<>
+          <div className="relative">
+            <Icon name="search" size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar…" className="!pl-8 !py-2 !text-xs" style={{ width: 200 }} />
+          </div>
+          <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} className="!py-2 !text-xs" style={{ width: 170 }}>
+            <option value="">Todas las acciones</option>
+            <option value="Contactar">Solo Contactar</option>
+            <option value="Armar Reunión">Solo Armar Reunión</option>
+          </select>
+          <select value={filterAsignacion} onChange={e => setFilterAsignacion(e.target.value)} className="!py-2 !text-xs" style={{ width: 180 }}>
+            <option value="todos">Todos los asignados</option>
+            <option value="mio">Solo mis asignaciones</option>
+            <option value="sin">Sin asignar</option>
+            {admins.map(a => <option key={a.id} value={a.id}>De {a.name.split(' ')[0]}</option>)}
+          </select>
+        </>}
+      />
+
+      <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto space-y-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard title="Total pendientes" value={stats.total} hint="Contactar + Armar Reunión" />
+          <StatCard title="Sin asignar" value={stats.sinAsignar} hint={stats.sinAsignar > 0 ? 'Reparta entre los admins' : 'Todos asignados ✓'} />
+          {admins.map(a => (
+            <StatCard key={a.id} title={a.name.split(' ')[0]} value={stats.byAdmin[a.id]?.count || 0} hint={`asignados a ${a.name.split(' ')[0]}`} />
+          ))}
+        </div>
+
+        <Panel title={`Clientes a contactar (${filtered.length} de ${candidatos.length})`}>
+          {filtered.length === 0 ? <EmptyState title="Sin clientes pendientes" hint="Modificá los filtros o cargá nuevas acciones en Uso clientes." /> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2 pr-2">Cliente</th>
+                    <th className="pr-2">Acción</th>
+                    <th className="pr-2">País</th>
+                    <th className="pr-2">Score</th>
+                    <th className="pr-2 text-right">Sin login</th>
+                    <th className="pr-2">Asignado</th>
+                    <th className="pr-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(c => {
+                    const { score, color } = clientScore(c);
+                    const asignadoUser = admins.find(a => a.id === c.asignado_a);
+                    return (
+                      <tr key={c.id} className="border-t border-line hover:bg-surface-2/40">
+                        <td className="py-2.5 pr-2">
+                          <div className="font-medium text-ink">{c.cliente}</div>
+                          {c.contacto && <div className="text-[10.5px] text-muted line-clamp-1">{c.contacto}</div>}
+                        </td>
+                        <td className="pr-2">
+                          <Badge className={CATEGORIA_BADGE[c._cat]}>{c._cat}</Badge>
+                          <div className="text-[10.5px] text-ink-2 line-clamp-2 mt-1 max-w-[280px]" title={c.accion}>{c.accion}</div>
+                        </td>
+                        <td className="pr-2 text-ink-2">{c.pais || '—'}</td>
+                        <td className="pr-2"><Badge className={SCORE_BADGE[color]}>{score}</Badge></td>
+                        <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_login||0) >= 60 ? 'text-bad' : (c.dias_sin_login||0) >= 30 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_login != null ? `${c.dias_sin_login}d` : '—'}</td>
+                        <td className="pr-2">
+                          {asignadoUser ? (
+                            <div className="flex items-center gap-1.5">
+                              <Avatar user={asignadoUser} size={20} />
+                              <span className="text-xs text-ink-2">{asignadoUser.name.split(' ')[0]}</span>
+                            </div>
+                          ) : <span className="text-[11px] text-muted italic">sin asignar</span>}
+                        </td>
+                        <td className="pr-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {admins.map(a => (
+                              <button key={a.id} onClick={() => setAsignado(c, a.id)}
+                                className={`px-2 py-1 text-[11px] rounded border transition ${c.asignado_a === a.id ? 'bg-gold/10 text-gold border-gold/40' : 'border-line text-ink-2 hover:border-gold/40 hover:text-ink'}`}>
+                                {a.name.split(' ')[0]}
+                              </button>
+                            ))}
+                            {c.asignado_a && (
+                              <button onClick={() => setAsignado(c, null)} className="px-2 py-1 text-[11px] rounded border border-line text-muted hover:text-bad hover:border-bad/40" title="Quitar asignación">×</button>
+                            )}
+                            <button onClick={() => marcarHecho(c)} className="px-2 py-1 text-[11px] rounded bg-ok/10 text-ok border border-ok/30 hover:bg-ok/20" title="Marcar acción como hecha (pasa a Todo OK)">
+                              <Icon name="check" size={11} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -2219,6 +2400,7 @@ function App() {
     case 'consult/calendar': view = <ConsultoraCalendar />; break;
     case 'consult/metrics':  view = <ConsultoraMetrics />;  break;
     case 'max/usage':        view = <MaximusUsage />;       break;
+    case 'max/plan':         view = <MaximusPlanComercial />; break;
     case 'max/prospects':    view = <MaximusProspects />;   break;
     case 'max/tasks':        view = <MaximusTasks />;       break;
     default:                 view = <ConsultoraKanban />;

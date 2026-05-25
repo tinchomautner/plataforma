@@ -73,7 +73,8 @@ create table if not exists public.maximus_clients (
   max_pct       int,
   canal_dominante text,
   semaforo      text,
-  asignado_a    text references public.team(id)
+  asignado_a    text references public.team(id),
+  nota_plan     text
 );
 create index if not exists idx_max_clients_semaforo on public.maximus_clients(semaforo);
 create index if not exists idx_max_clients_pais on public.maximus_clients(pais);
@@ -91,7 +92,8 @@ create table if not exists public.maximus_prospects (
   cliente_compartido text,
   asignado_a         text references public.team(id),
   jira_key           text,
-  jira_estado        text
+  jira_estado        text,
+  nota_plan          text
 );
 
 -- MaximUs — tareas equipo (asignación múltiple en jsonb)

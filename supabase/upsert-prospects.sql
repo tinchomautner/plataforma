@@ -1,14 +1,17 @@
 -- ====================================================================
--- Actualizar 241 prospects desde Jira CSV nuevo + agregar columnas
+-- Actualizar prospects + columnas nuevas (pais, asignado_a, jira_*, nota_plan)
 -- Correr en Supabase → SQL Editor → paste → Run
 -- ====================================================================
 
--- Columnas nuevas para asignación y estado de Jira original
+-- 1) Agregar columnas faltantes (idempotente)
+alter table public.maximus_prospects add column if not exists pais text;
 alter table public.maximus_prospects add column if not exists asignado_a text references public.team(id);
 alter table public.maximus_prospects add column if not exists jira_key text;
 alter table public.maximus_prospects add column if not exists jira_estado text;
+alter table public.maximus_prospects add column if not exists nota_plan text;
+alter table public.maximus_clients   add column if not exists nota_plan text;
 
--- Upsert de 226 prospects
+-- 2) Upsert 226 prospects con datos del Jira nuevo
 insert into public.maximus_prospects (id, empresa, contacto, producto, pais, notas, prox_seguimiento, estado, jira_key, jira_estado) values
   ('pr_7e3bf467ed', 'Allaria', 'Julian Barla', 'MaximUs Pro', 'Argentina', 'Importado de Jira (PROS-10). Estado original: Cliente.', '2026-04-27T00:00:00', 'ganado', 'PROS-10', 'Cliente'),
   ('pr_2be9211133', 'Criteria', 'Laura Oller', 'MaximUs Pro', 'Argentina', 'Importado de Jira (PROS-23). Estado original: Probando Servicio.', '2026-04-30T00:00:00', 'ganado', 'PROS-23', 'Probando Servicio'),

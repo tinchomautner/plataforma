@@ -59,6 +59,7 @@
       asignado_a: r.asignado_a || null,
       jiraKey: r.jira_key || '',
       jiraEstado: r.jira_estado || '',
+      nota_plan: r.nota_plan || '',
     });
     const mapProspectOut = (p) => ({
       id: p.id, empresa: p.empresa, contacto: p.contacto, producto: p.producto,
@@ -68,6 +69,7 @@
       asignado_a: p.asignado_a || null,
       jira_key: p.jiraKey || null,
       jira_estado: p.jiraEstado || null,
+      nota_plan: p.nota_plan || null,
     });
     const mapTask = (r) => ({
       id: r.id, titulo: r.titulo, descripcion: r.descripcion, asignados: r.asignados || [],
@@ -210,9 +212,8 @@
         } catch {}
       }
       const res = await sb.from('maximus_clients').upsert({ id, ...rest });
-      // Si falla por columna 'asignado_a' inexistente, reintentar sin ella
-      if (res.error && /asignado_a/.test(res.error.message || '')) {
-        const { asignado_a, ...without } = rest;
+      if (res.error && /asignado_a|nota_plan/.test(res.error.message || '')) {
+        const { asignado_a, nota_plan, ...without } = rest;
         return sb.from('maximus_clients').upsert({ id, ...without });
       }
       return res;
@@ -231,8 +232,8 @@
       }
       const res = await sb.from('maximus_prospects').upsert(out);
       // Si falla por columnas nuevas, reintentar sin ellas
-      if (res.error && /asignado_a|jira_|pais/.test(res.error.message || '')) {
-        const { asignado_a, jira_key, jira_estado, pais, ...without } = out;
+      if (res.error && /asignado_a|jira_|pais|nota_plan/.test(res.error.message || '')) {
+        const { asignado_a, jira_key, jira_estado, pais, nota_plan, ...without } = out;
         return sb.from('maximus_prospects').upsert(without);
       }
       return res;

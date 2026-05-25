@@ -1646,6 +1646,25 @@ function MaximusUsage() {
   );
 }
 
+/* Nota editable inline para Plan comercial */
+function NotaPlanEditable({ value, onSave, placeholder = 'Agregar motivo del contacto…' }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value || '');
+  useEffect(() => { setText(value || ''); }, [value]);
+  const save = () => { if (text !== (value || '')) onSave(text); setEditing(false); };
+  if (!editing) {
+    return value
+      ? <div onClick={() => setEditing(true)} className="text-[11px] text-ink-2 italic cursor-text hover:text-ink line-clamp-2 max-w-[280px]" title={value}>{value}</div>
+      : <button onClick={() => setEditing(true)} className="text-[11px] text-muted hover:text-gold italic">+ nota</button>;
+  }
+  return (
+    <textarea autoFocus value={text} onChange={e => setText(e.target.value)} onBlur={save}
+      onKeyDown={e => { if (e.key === 'Escape') { setText(value || ''); setEditing(false); } if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save(); }}
+      rows={2} placeholder={placeholder}
+      className="!text-[11px] !py-1 !px-2" style={{ width: 280, minHeight: 50 }} />
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────────────
    MAXIMUS — PLAN COMERCIAL (solo admin)
    Lista clientes con acción Contactar / Armar Reunión, asignable a admins
@@ -1705,6 +1724,12 @@ function MaximusPlanComercial() {
   const moverProspect = (p, nuevoEstado) => {
     dispatch({ type: 'PROS_UPDATE', p: { ...p, estado: nuevoEstado, jiraEstado: nuevoEstado === 'contactado' ? 'Volver a contactar' : p.jiraEstado, asignado_a: null } });
   };
+  const setNotaPlanCliente = (c, nota) => {
+    dispatch({ type: 'CLIENT_UPSERT', client: { ...sanitize(c), nota_plan: nota } });
+  };
+  const setNotaPlanProspect = (p, nota) => {
+    dispatch({ type: 'PROS_UPDATE', p: { ...p, nota_plan: nota } });
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -1748,7 +1773,7 @@ function MaximusPlanComercial() {
                     <th className="py-2 pr-2">Empresa</th>
                     <th className="pr-2">Contacto</th>
                     <th className="pr-2">País</th>
-                    <th className="pr-2">Jira</th>
+                    <th className="pr-2">Motivo / nota</th>
                     <th className="pr-2">Asignado</th>
                     <th className="pr-2"></th>
                   </tr>
@@ -1761,7 +1786,10 @@ function MaximusPlanComercial() {
                         <td className="py-2.5 pr-2 font-medium text-ink">{p.empresa}</td>
                         <td className="pr-2 text-ink-2">{p.contacto || '—'}</td>
                         <td className="pr-2 text-ink-2">{p.pais || '—'}</td>
-                        <td className="pr-2 text-[10px] text-muted font-mono">{p.jiraKey || '—'}</td>
+                        <td className="pr-2">
+                          <NotaPlanEditable value={p.nota_plan} onSave={(t) => setNotaPlanProspect(p, t)} />
+                          {p.jiraKey && <div className="text-[9px] text-muted font-mono mt-0.5">{p.jiraKey}</div>}
+                        </td>
                         <td className="pr-2">
                           {asig ? (
                             <div className="flex items-center gap-1.5">
@@ -1806,6 +1834,7 @@ function MaximusPlanComercial() {
                     <th className="pr-2">País</th>
                     <th className="pr-2">Score</th>
                     <th className="pr-2 text-right">Sin login</th>
+                    <th className="pr-2">Motivo / nota</th>
                     <th className="pr-2">Asignado</th>
                     <th className="pr-2"></th>
                   </tr>
@@ -1834,6 +1863,9 @@ function MaximusPlanComercial() {
                         <td className="pr-2 text-ink-2">{c.pais || '—'}</td>
                         <td className="pr-2"><Badge className={SCORE_BADGE[color]}>{score}</Badge></td>
                         <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_login||0) >= 60 ? 'text-bad' : (c.dias_sin_login||0) >= 30 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_login != null ? `${c.dias_sin_login}d` : '—'}</td>
+                        <td className="pr-2">
+                          <NotaPlanEditable value={c.nota_plan} onSave={(t) => setNotaPlanCliente(c, t)} />
+                        </td>
                         <td className="pr-2">
                           {asignadoUser ? (
                             <div className="flex items-center gap-1.5">

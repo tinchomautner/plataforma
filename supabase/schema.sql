@@ -91,6 +91,17 @@ create table if not exists public.analisis (
   uploaded_at  timestamptz not null default now()
 );
 
+-- Reservas de sala MaximUs
+create table if not exists public.reservas_sala (
+  id              text primary key,
+  inicio          timestamptz not null,
+  fin             timestamptz not null,
+  titulo          text not null,
+  notas           text default '',
+  reservado_por   text references public.team(id),
+  reservado_at    timestamptz not null default now()
+);
+
 -- Historial de envíos por whatsapp
 create table if not exists public.envios_whatsapp (
   id            text primary key,

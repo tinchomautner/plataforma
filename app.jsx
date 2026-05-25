@@ -211,6 +211,7 @@ const ROUTE_PERMS = {
   'max/analisis':     ['admin','maximus'],
   'max/prospects':    ['admin','maximus'],
   'max/tasks':        ['admin','maximus'],
+  'max/sala':         ['admin','maximus','consultora'],
 };
 const canSee = (user, routeId) => {
   if (!user) return false;
@@ -300,7 +301,7 @@ const initialState = () => {
   return {
     team: TEAM_SEED,
     consultora: { cards: seedConsultora() },
-    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [] },
+    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [], reservas: [] },
   };
 };
 
@@ -349,6 +350,15 @@ function reducer(state, action) {
     case 'ANALISIS_ADD':    return { ...state, maximus: { ...state.maximus, analisis: [action.a, ...(state.maximus.analisis||[])] } };
     case 'ANALISIS_DELETE': return { ...state, maximus: { ...state.maximus, analisis: (state.maximus.analisis||[]).filter(a => a.id !== action.id) } };
     case 'ENVIO_ADD':       return { ...state, maximus: { ...state.maximus, envios: [action.e, ...(state.maximus.envios||[])] } };
+
+    /* Reservas sala */
+    case 'RESERVA_UPSERT': {
+      const list = state.maximus.reservas || [];
+      const exists = list.some(r => r.id === action.r.id);
+      const reservas = exists ? list.map(r => r.id === action.r.id ? { ...r, ...action.r } : r) : [action.r, ...list];
+      return { ...state, maximus: { ...state.maximus, reservas } };
+    }
+    case 'RESERVA_DELETE':  return { ...state, maximus: { ...state.maximus, reservas: (state.maximus.reservas||[]).filter(r => r.id !== action.id) } };
 
     /* Team */
     case 'TEAM_UPSERT': {
@@ -535,6 +545,7 @@ const NAV = [
     { id: 'max/analisis',  label: 'Análisis + WhatsApp', icon: 'send' },
     { id: 'max/prospects', label: 'Pipeline ventas', icon: 'pipeline' },
     { id: 'max/tasks',     label: 'Tareas equipo',   icon: 'task' },
+    { id: 'max/sala',      label: 'Sala MaximUs',    icon: 'calendar' },
   ]},
 ];
 
@@ -1680,6 +1691,208 @@ function MaximusUsage() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────
+   MAXIMUS — SALA DE REUNIONES (reservas por calendario)
+   ───────────────────────────────────────────────────────────────────── */
+const HORA_INICIO = 8;   // 08:00
+const HORA_FIN    = 20;  // 20:00
+const SLOT_MIN    = 30;  // slots de 30 min
+
+function MaximusSala() {
+  const { state, dispatch, me } = useApp();
+  const reservas = state.maximus.reservas || [];
+  const team = state.team;
+  const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
+  const [editing, setEditing] = useState(null); // reserva | { inicio, fin } (nueva)
+
+  // Lun-Vie de la semana anchor
+  const weekStart = useMemo(() => {
+    const d = new Date(anchor); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); d.setHours(0,0,0,0); return d;
+  }, [anchor]);
+  const days = Array.from({ length: 5 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); return d; });
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 5);
+
+  const weekReservas = useMemo(() => reservas.filter(r => r.inicio >= weekStart.getTime() && r.inicio < weekEnd.getTime()), [reservas, weekStart, weekEnd]);
+
+  const hours = [];
+  for (let h = HORA_INICIO; h < HORA_FIN; h++) hours.push(h);
+  const SLOT_PX = 28;
+
+  const move = (n) => { const d = new Date(anchor); d.setDate(d.getDate() + n * 7); setAnchor(d); };
+  const today = () => { const d = new Date(); d.setHours(0,0,0,0); setAnchor(d); };
+
+  const slotClick = (day, hour, minute) => {
+    const ini = new Date(day); ini.setHours(hour, minute, 0, 0);
+    const fin = new Date(ini); fin.setHours(fin.getHours() + 1);
+    // Verificar que no se superponga
+    const overlap = weekReservas.some(r => !(r.fin <= ini.getTime() || r.inicio >= fin.getTime()));
+    if (overlap) return;
+    setEditing({ inicio: ini.getTime(), fin: fin.getTime(), titulo: '', notas: '', reservadoPor: me.id });
+  };
+
+  const guardar = (r) => {
+    if (!r.titulo || !r.inicio || !r.fin) return;
+    const id = r.id || ('res_' + uid());
+    dispatch({ type: 'RESERVA_UPSERT', r: { ...r, id, reservadoPor: r.reservadoPor || me.id, reservadoAt: r.reservadoAt || now() } });
+    setEditing(null);
+  };
+  const eliminar = (id) => { dispatch({ type: 'RESERVA_DELETE', id }); setEditing(null); };
+
+  const monthLabel = weekStart.toLocaleDateString('es-UY', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Sala de reuniones MaximUs"
+        subtitle="Reservá un horario haciendo click en una franja libre. Tus reservas las podés editar o cancelar."
+        actions={<>
+          <span className="text-xs text-muted capitalize">{monthLabel}</span>
+          <Btn variant="soft" size="sm" onClick={() => move(-1)}><Icon name="chevL" size={14} /></Btn>
+          <Btn variant="soft" size="sm" onClick={today}>Hoy</Btn>
+          <Btn variant="soft" size="sm" onClick={() => move(1)}><Icon name="chevR" size={14} /></Btn>
+        </>}
+      />
+      <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto">
+        <div className="border border-line rounded-lg bg-bg overflow-hidden">
+          {/* Header con días */}
+          <div className="grid bg-surface border-b border-line" style={{ gridTemplateColumns: '60px repeat(5, 1fr)' }}>
+            <div className="px-2 py-2 text-[10px] text-muted uppercase tracking-wider"></div>
+            {days.map((d, i) => {
+              const isToday = sameDay(d.getTime(), now());
+              return (
+                <div key={i} className={`px-3 py-2 text-center border-l border-line ${isToday ? 'bg-gold/10' : ''}`}>
+                  <div className="text-[10px] uppercase tracking-wider text-muted">{d.toLocaleDateString('es-UY', { weekday: 'short' })}</div>
+                  <div className={`font-semibold ${isToday ? 'text-gold' : 'text-ink'}`}>{d.getDate()}</div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Grid de horas */}
+          <div className="grid" style={{ gridTemplateColumns: '60px repeat(5, 1fr)' }}>
+            {/* Columna de horas */}
+            <div>
+              {hours.map(h => (
+                <div key={h} className="text-[10px] text-muted text-right pr-2 border-b border-line" style={{ height: SLOT_PX * 2 }}>
+                  {String(h).padStart(2,'0')}:00
+                </div>
+              ))}
+            </div>
+            {/* Columnas de días */}
+            {days.map((d, di) => {
+              const dayReservas = weekReservas.filter(r => sameDay(r.inicio, d.getTime()));
+              return (
+                <div key={di} className="border-l border-line relative">
+                  {hours.map(h => (
+                    <React.Fragment key={h}>
+                      <div onClick={() => slotClick(d, h, 0)}
+                        className="border-b border-line/50 hover:bg-gold/5 cursor-pointer transition" style={{ height: SLOT_PX }} />
+                      <div onClick={() => slotClick(d, h, 30)}
+                        className="border-b border-line hover:bg-gold/5 cursor-pointer transition" style={{ height: SLOT_PX }} />
+                    </React.Fragment>
+                  ))}
+                  {/* Reservas como absolute blocks */}
+                  {dayReservas.map(r => {
+                    const ini = new Date(r.inicio);
+                    const fin = new Date(r.fin);
+                    const startMin = (ini.getHours() - HORA_INICIO) * 60 + ini.getMinutes();
+                    const durMin   = (fin - ini) / 60000;
+                    const top = (startMin / SLOT_MIN) * SLOT_PX;
+                    const height = (durMin / SLOT_MIN) * SLOT_PX;
+                    if (top < 0 || top > (HORA_FIN - HORA_INICIO) * 60 / SLOT_MIN * SLOT_PX) return null;
+                    const u = team.find(x => x.id === r.reservadoPor);
+                    const color = u?.color || '#0066CC';
+                    return (
+                      <div key={r.id} onClick={(e) => { e.stopPropagation(); setEditing(r); }}
+                        className="absolute left-0.5 right-0.5 rounded text-[10px] p-1.5 cursor-pointer hover:brightness-95 transition overflow-hidden"
+                        style={{ top, height: Math.max(height, 18), background: color + '20', borderLeft: `3px solid ${color}` }}>
+                        <div className="font-semibold truncate" style={{ color }}>{r.titulo}</div>
+                        {height > 32 && u && <div className="text-[9px] text-ink-2 truncate">{u.name.split(' ')[0]}</div>}
+                        {height > 50 && <div className="text-[9px] text-muted tabular-nums">{ini.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false})}–{fin.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false})}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="text-[10px] text-muted mt-3">Click en una franja libre para reservar · Click en una reserva para editarla</div>
+      </div>
+
+      {editing && (
+        <ReservaModal reserva={editing} team={team} me={me} onClose={() => setEditing(null)} onSave={guardar} onDelete={eliminar} weekReservas={weekReservas} />
+      )}
+    </div>
+  );
+}
+
+function ReservaModal({ reserva, team, me, onClose, onSave, onDelete, weekReservas }) {
+  const isNew = !reserva.id;
+  const [form, setForm] = useState(reserva);
+  const owner = team.find(t => t.id === form.reservadoPor);
+  const puedoEditar = !owner || form.reservadoPor === me.id || me.perms === 'admin';
+
+  const setHora = (which, value) => {
+    const [h, m] = value.split(':').map(Number);
+    const d = new Date(form[which]); d.setHours(h, m, 0, 0);
+    setForm({ ...form, [which]: d.getTime() });
+  };
+  const setFecha = (value) => {
+    const [y, mo, d] = value.split('-').map(Number);
+    const ini = new Date(form.inicio); ini.setFullYear(y, mo - 1, d);
+    const fin = new Date(form.fin);    fin.setFullYear(y, mo - 1, d);
+    setForm({ ...form, inicio: ini.getTime(), fin: fin.getTime() });
+  };
+
+  const overlapping = weekReservas.some(r =>
+    r.id !== form.id &&
+    !(r.fin <= form.inicio || r.inicio >= form.fin)
+  );
+
+  const fechaInput = new Date(form.inicio).toISOString().slice(0, 10);
+  const horaIni = new Date(form.inicio).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const horaFin = new Date(form.fin).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  return (
+    <Modal open={true} onClose={onClose} title={isNew ? 'Nueva reserva' : 'Editar reserva'}>
+      <Field label="Motivo / título">
+        <input value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} placeholder="Reunión cliente Pampa" disabled={!puedoEditar} autoFocus />
+      </Field>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4">
+        <Field label="Fecha">
+          <input type="date" value={fechaInput} onChange={e => setFecha(e.target.value)} disabled={!puedoEditar} />
+        </Field>
+        <Field label="Hora desde">
+          <input type="time" value={horaIni} onChange={e => setHora('inicio', e.target.value)} disabled={!puedoEditar} />
+        </Field>
+        <Field label="Hora hasta">
+          <input type="time" value={horaFin} onChange={e => setHora('fin', e.target.value)} disabled={!puedoEditar} />
+        </Field>
+      </div>
+      <Field label="Notas (opcional)">
+        <textarea rows={2} value={form.notas || ''} onChange={e => setForm({ ...form, notas: e.target.value })} disabled={!puedoEditar} />
+      </Field>
+      {owner && (
+        <div className="flex items-center gap-2 text-[12px] text-muted mb-3 px-1">
+          <span>Reservado por:</span>
+          <Avatar user={owner} size={20} />
+          <span>{owner.name}</span>
+        </div>
+      )}
+      {overlapping && <div className="text-bad text-[11px] mb-3 px-1">⚠️ Se superpone con otra reserva</div>}
+      <div className="flex items-center justify-between pt-1">
+        <div>
+          {!isNew && puedoEditar && <Btn variant="danger" onClick={() => onDelete(form.id)}><Icon name="trash" size={14} />Cancelar reserva</Btn>}
+        </div>
+        <div className="flex gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cerrar</Btn>
+          {puedoEditar && <Btn onClick={() => onSave(form)} disabled={!form.titulo || overlapping || form.fin <= form.inicio}><Icon name="check" size={14} />Guardar</Btn>}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
    MAXIMUS — ANÁLISIS Y ENVÍOS (broadcast por holdings)
    ───────────────────────────────────────────────────────────────────── */
 const phoneClean = (t) => (t || '').replace(/[^\d]/g, '');
@@ -2814,6 +3027,8 @@ function useStore() {
         case 'ANALISIS_ADD':    SUPA.upsertAnalisis(action.a); break;
         case 'ANALISIS_DELETE': SUPA.deleteAnalisis(action.id); break;
         case 'ENVIO_ADD':       SUPA.addEnvio(action.e); break;
+        case 'RESERVA_UPSERT':  SUPA.upsertReserva(action.r); break;
+        case 'RESERVA_DELETE':  SUPA.deleteReserva(action.id); break;
       }
     } catch (e) { console.error('Supabase persist error', e); }
   }, [supaReady]);
@@ -2863,6 +3078,7 @@ function App() {
     case 'max/analisis':     view = <MaximusAnalisis />;    break;
     case 'max/prospects':    view = <MaximusProspects />;   break;
     case 'max/tasks':        view = <MaximusTasks />;       break;
+    case 'max/sala':         view = <MaximusSala />;        break;
     default:                 view = <ConsultoraKanban />;
   }
 

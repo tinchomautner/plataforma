@@ -193,7 +193,7 @@
       // Intentar migrar asignaciones locales antes de hidratar
       migrateLocalAsignaciones().catch(() => {});
 
-      const [team, cards, clients, prospects, tasks, comments, analisis, envios] = await Promise.all([
+      const [team, cards, clients, prospects, tasks, comments, analisis, envios, reservas] = await Promise.all([
         selectAll('team'),
         selectAll('consultora_cards'),
         selectAll('maximus_clients'),
@@ -202,6 +202,7 @@
         selectAll('maximus_task_comments'),
         selectAll('analisis').catch(() => []),
         selectAll('envios_whatsapp').catch(() => []),
+        selectAll('reservas_sala').catch(() => []),
       ]).then(arr => arr.map(data => ({ data, error: null })));
       const err = [team, cards, clients, prospects, tasks, comments].find(r => r.error);
       if (err) throw err.error;
@@ -258,6 +259,14 @@
             id: e.id, analisisId: e.analisis_id, clienteId: e.cliente_id,
             contacto: e.contacto, telefono: e.telefono, mensaje: e.mensaje,
             enviadoBy: e.enviado_by, enviadoAt: e.enviado_at ? new Date(e.enviado_at).getTime() : null,
+          })),
+          reservas: (reservas.data || []).map(r => ({
+            id: r.id,
+            inicio: r.inicio ? new Date(r.inicio).getTime() : null,
+            fin:    r.fin    ? new Date(r.fin).getTime()    : null,
+            titulo: r.titulo, notas: r.notas || '',
+            reservadoPor: r.reservado_por,
+            reservadoAt: r.reservado_at ? new Date(r.reservado_at).getTime() : null,
           })),
         }
       };
@@ -326,6 +335,14 @@
         enviado_at: new Date().toISOString(),
       });
     }
+    async function upsertReserva(r) {
+      return sb.from('reservas_sala').upsert({
+        id: r.id, inicio: new Date(r.inicio).toISOString(), fin: new Date(r.fin).toISOString(),
+        titulo: r.titulo, notas: r.notas || '', reservado_por: r.reservadoPor || null,
+        reservado_at: r.reservadoAt ? new Date(r.reservadoAt).toISOString() : new Date().toISOString(),
+      });
+    }
+    async function deleteReserva(id) { return sb.from('reservas_sala').delete().eq('id', id); }
 
     function subscribe(onChange) {
       const ch = sb.channel('plataforma-sync')
@@ -337,6 +354,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team'                 }, () => onChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'analisis'             }, () => onChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'envios_whatsapp'      }, () => onChange())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas_sala'        }, () => onChange())
         .subscribe();
       return () => sb.removeChannel(ch);
     }
@@ -349,6 +367,7 @@
       upsertProspect, deleteProspect,
       upsertTask, deleteTask, addComment,
       upsertAnalisis, deleteAnalisis, addEnvio,
+      upsertReserva, deleteReserva,
     };
   }
 })();

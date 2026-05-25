@@ -1425,6 +1425,7 @@ const CATEGORIA_BADGE = {
   'Armar Reunión': 'bg-blue-500/15 text-blue-700 border-blue-500/30',
   'Otros':         'bg-slate-500/15 text-slate-600 border-slate-500/30',
 };
+const normalizar = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 function categoriaAccion(accion) {
   const a = (accion || '').toLowerCase().trim();
   if (!a || a === '-' || a.startsWith('todo ok')) return 'Todo OK';
@@ -1600,10 +1601,18 @@ function MaximusUsage() {
                         <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_login||0) >= 60 ? 'text-bad' : (c.dias_sin_login||0) >= 30 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_login != null ? `${c.dias_sin_login}d` : '—'}</td>
                         <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_pedido||0) >= 120 ? 'text-bad' : (c.dias_sin_pedido||0) >= 60 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_pedido != null ? `${c.dias_sin_pedido}d` : '—'}</td>
                         <td className="pr-2 max-w-[260px]">
-                          <div className="flex items-center gap-1.5">
-                            <Badge className={CATEGORIA_BADGE[categoriaAccion(c.accion)]}>{categoriaAccion(c.accion)}</Badge>
-                            <span className="text-ink-2 line-clamp-1 text-[11px]" title={c.accion}>{c.accion || ''}</span>
-                          </div>
+                          {(() => {
+                            const cat = categoriaAccion(c.accion);
+                            const raw = (c.accion || '').trim();
+                            const nr = normalizar(raw);
+                            const showDetail = raw && raw !== '-' && nr !== normalizar(cat) && !CATEGORIAS.some(x => normalizar(x) === nr);
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <Badge className={CATEGORIA_BADGE[cat]}>{cat}</Badge>
+                                {showDetail && <span className="text-ink-2 line-clamp-1 text-[11px]" title={raw}>{raw}</span>}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td><Icon name="chevR" size={14} className="text-muted" /></td>
                       </tr>
@@ -1749,7 +1758,14 @@ function MaximusPlanComercial() {
                         </td>
                         <td className="pr-2">
                           <Badge className={CATEGORIA_BADGE[c._cat]}>{c._cat}</Badge>
-                          <div className="text-[10.5px] text-ink-2 line-clamp-2 mt-1 max-w-[280px]" title={c.accion}>{c.accion}</div>
+                          {(() => {
+                            const raw = (c.accion || '').trim();
+                            const nr = normalizar(raw);
+                            const showDetail = raw && raw !== '-' && nr !== normalizar(c._cat) && !CATEGORIAS.some(x => normalizar(x) === nr);
+                            return showDetail
+                              ? <div className="text-[10.5px] text-ink-2 line-clamp-2 mt-1 max-w-[280px]" title={raw}>{raw}</div>
+                              : null;
+                          })()}
                         </td>
                         <td className="pr-2 text-ink-2">{c.pais || '—'}</td>
                         <td className="pr-2"><Badge className={SCORE_BADGE[color]}>{score}</Badge></td>

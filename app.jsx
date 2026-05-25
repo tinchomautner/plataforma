@@ -1863,8 +1863,12 @@ function ClientEditor({ open, client, onClose, onSave, onDelete }) {
         </Field>
       </div>
 
-      <Field label="Acción sugerida / próxima">
-        <textarea rows={2} value={form.accion || ''} onChange={e => setForm({ ...form, accion: e.target.value })} placeholder="Ej: Armar Demo de MaximUs / Renovar contrato / etc." />
+      <Field label="Acción sugerida" hint={form.accion && !CATEGORIAS.includes(form.accion) ? `Acción anterior: "${form.accion}"` : null}>
+        <select value={CATEGORIAS.includes(form.accion) ? form.accion : (form.accion ? categoriaAccion(form.accion) : '')}
+                onChange={e => setForm({ ...form, accion: e.target.value })}>
+          <option value="">Sin clasificar</option>
+          {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
       </Field>
 
       <div className="flex items-center justify-between pt-1">

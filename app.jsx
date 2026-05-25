@@ -593,8 +593,22 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced, mobileOpen, 
           <button onClick={onLogout} title="Cerrar sesión" className="text-muted hover:text-ink"><Icon name="logout" size={16} /></button>
         </div>
         <div className="flex items-center gap-1.5 px-2 pt-1 text-[10px] text-muted">
-          <span className={`w-1.5 h-1.5 rounded-full ${synced ? 'bg-ok' : 'bg-muted'}`} />
-          {synced ? 'Sincronizado con equipo' : 'Local (sin sync)'}
+          {synced ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-ok" />
+              Sincronizado con equipo
+            </>
+          ) : window.SUPABASE_CFG ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
+              Conectando con Supabase…
+            </>
+          ) : (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-muted" />
+              Local (sin sync)
+            </>
+          )}
         </div>
       </div>
     </aside>

@@ -1852,6 +1852,7 @@ function EnviarAnalisis({ state, dispatch, me }) {
 function HoldingsClientes({ state, dispatch }) {
   const clients = state.maximus.clients;
   const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState(null); // client id en edición
   const filtered = clients.filter(c =>
     !search || `${c.cliente} ${(c.activos || []).join(' ')}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -1872,28 +1873,53 @@ function HoldingsClientes({ state, dispatch }) {
               <tr>
                 <th className="py-2 pr-2">Cliente</th>
                 <th className="pr-2">Teléfono</th>
-                <th className="pr-2 w-1/2">Activos (separados por coma)</th>
+                <th className="pr-2 text-right">Activos</th>
+                <th className="pr-2"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
-                <tr key={c.id} className="border-t border-line">
-                  <td className="py-2.5 pr-2 font-medium text-ink">{c.cliente}</td>
-                  <td className="pr-2 text-ink-2 text-[11px]">{c.telefono || <span className="text-muted italic">sin teléfono</span>}</td>
-                  <td className="pr-2">
-                    <input
-                      defaultValue={Array.isArray(c.activos) ? c.activos.join(', ') : ''}
-                      onBlur={(e) => {
-                        const newAct = e.target.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-                        const same = JSON.stringify(newAct) === JSON.stringify(c.activos || []);
-                        if (!same) updateActivos(c, newAct);
-                      }}
-                      placeholder="AAPL, MSFT, TSLA"
-                      className="!text-[12px] !py-1.5"
-                    />
-                  </td>
-                </tr>
-              ))}
+              {filtered.map(c => {
+                const activos = Array.isArray(c.activos) ? c.activos : [];
+                const isEditing = editing === c.id;
+                return (
+                  <React.Fragment key={c.id}>
+                    <tr className="border-t border-line align-top">
+                      <td className="py-2.5 pr-2 font-medium text-ink">{c.cliente}</td>
+                      <td className="pr-2 text-ink-2 text-[11px] whitespace-nowrap">{c.telefono || <span className="text-muted italic">sin tel</span>}</td>
+                      <td className="pr-2 text-right tabular-nums">
+                        <span className={activos.length === 0 ? 'text-muted' : 'text-ink font-medium'}>{activos.length}</span>
+                      </td>
+                      <td className="pr-2 whitespace-nowrap text-right">
+                        <button onClick={() => setEditing(isEditing ? null : c.id)}
+                          className="px-2 py-1 text-[11px] rounded border border-line text-ink-2 hover:border-gold/40 hover:text-ink">
+                          {isEditing ? 'Cerrar' : 'Editar'}
+                        </button>
+                      </td>
+                    </tr>
+                    {isEditing && (
+                      <tr className="bg-surface-2/40">
+                        <td colSpan={4} className="py-2 px-2">
+                          <textarea
+                            autoFocus
+                            rows={6}
+                            defaultValue={activos.join(', ')}
+                            onBlur={(e) => {
+                              const newAct = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                              const same = JSON.stringify(newAct) === JSON.stringify(activos);
+                              if (!same) updateActivos(c, newAct);
+                              setEditing(null);
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null); }}
+                            placeholder="AAPL, MSFT, TSLA — separados por coma"
+                            className="!text-[12px] w-full"
+                          />
+                          <div className="text-[10px] text-muted mt-1">Esc para cancelar · click afuera para guardar</div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

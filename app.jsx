@@ -1684,8 +1684,58 @@ function MaximusUsage() {
         open={importing}
         onClose={() => setImporting(false)}
         onImport={(arr) => {
-          const norm = arr.map(c => ({ id: c.id || uid(), ...c }));
-          dispatch({ type: 'CLIENT_BULK', clients: norm });
+          // Detectar formato del JSON automáticamente
+          if (arr && !Array.isArray(arr) && arr.risk_users) {
+            // Formato Dashboard MaximUs → agregar por org y mergear con clientes existentes
+            const normalize = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+            const RISK_TO_SEM = { 'CRÍTICO': 'rojo', 'ALTO': 'rojo', 'MEDIO': 'amarillo', 'BAJO': 'verde' };
+            const ORDER = { 'CRÍTICO': 4, 'ALTO': 3, 'MEDIO': 2, 'BAJO': 1 };
+            const ACCION = { 'CRÍTICO': 'Contactar', 'ALTO': 'Contactar', 'MEDIO': 'Otros', 'BAJO': 'Todo OK' };
+            const byOrg = {};
+            arr.risk_users.forEach(u => {
+              const k = u.org;
+              if (!byOrg[k]) byOrg[k] = [];
+              byOrg[k].push(u);
+            });
+            const updates = [];
+            Object.entries(byOrg).forEach(([org, users]) => {
+              const orgN = normalize(org);
+              const match = clients.find(c => normalize(c.cliente) === orgN || normalize(c.cliente).includes(orgN) || orgN.includes(normalize(c.cliente)));
+              if (!match) return;
+              const worst = users.reduce((w, u) => (ORDER[u.risk_level]||0) > (ORDER[w]||0) ? u.risk_level : w, 'BAJO');
+              const totalProps = users.reduce((s, u) => s + (u.total_proposals || 0), 0);
+              const minDays = Math.min(...users.map(u => u.days_inactive ?? 0));
+              const riskScores = users.map(u => u.risk_score || 0);
+              const lastLogins = users.map(u => u.last_login_sort).filter(Boolean).sort();
+              const maxUltimoLogin = lastLogins[lastLogins.length - 1] || null;
+              const score = Math.max(0, 100 - Math.min(...riskScores));
+              const detalle = users.map(u => ({
+                name: u.name, email: u.email,
+                days_inactive: u.days_inactive, last_login: u.last_login,
+                total_proposals: u.total_proposals,
+                risk_score: u.risk_score, risk_level: u.risk_level,
+                recommended_action: u.recommended_action?.action,
+              }));
+              updates.push({
+                ...match,
+                dias_sin_login: minDays,
+                max_propuestas: totalProps,
+                max_users_count: users.length,
+                max_ultimo_login: maxUltimoLogin,
+                score,
+                semaforo: RISK_TO_SEM[worst] || 'amarillo',
+                accion: ACCION[worst] || 'Otros',
+                risk_level: worst,
+                usuarios_max: detalle,
+              });
+            });
+            updates.forEach(c => dispatch({ type: 'CLIENT_UPSERT', client: c }));
+            alert(`${updates.length} clientes actualizados con datos del dashboard (${arr.risk_users.length} usuarios, ${Object.keys(byOrg).length} orgs).${Object.keys(byOrg).length > updates.length ? ` ${Object.keys(byOrg).length - updates.length} orgs sin cliente en MaximUs.` : ''}`);
+          } else if (Array.isArray(arr)) {
+            // Formato legacy: array de clientes con campos directos
+            const norm = arr.map(c => ({ id: c.id || uid(), ...c }));
+            dispatch({ type: 'CLIENT_BULK', clients: norm });
+          }
           setImporting(false);
         }}
       />
@@ -2569,12 +2619,16 @@ function ImportJSON({ open, onClose, onImport }) {
   const [err, setErr] = useState('');
   useEffect(() => { if (open) { setText(''); setErr(''); } }, [open]);
   if (!open) return null;
-  const sample = JSON.stringify([
-    { nombre: 'Cliente X', plan: 'Pro', loginsMes: 12, ultimoUso: new Date().toISOString(), featuresActivas: 4, totalFeatures: 8, comentario: 'opcional' }
-  ], null, 2);
+  const sample = `// Formato dashboard MaximUs (auto-detectado):
+{ "metadata": {...}, "kpis": {...}, "risk_users": [
+  { "name": "...", "org": "Atlantis", "days_inactive": 12, "risk_level": "MEDIO", ... }
+]}
+
+// O formato legacy (array de clientes):
+[{ "cliente": "Cliente X", "score": 70, "loginsMes": 12 }]`;
   return (
     <Modal open={open} onClose={onClose} title="Importar métricas de clientes" width="max-w-2xl">
-      <p className="text-sm text-muted mb-3">Pegá un array JSON con los clientes. Reemplaza el listado actual.</p>
+      <p className="text-sm text-muted mb-3">Pegá el JSON. Se detecta automáticamente si es el dashboard de MaximUs (con <code>risk_users</code>) o el formato legacy. El dashboard <b>actualiza</b> los clientes existentes que matcheen por nombre.</p>
       <textarea rows={12} value={text} onChange={e => setText(e.target.value)} placeholder={sample} className="font-mono !text-[12px]" />
       {err && <div className="text-bad text-sm mt-2">{err}</div>}
       <div className="flex justify-end gap-2 mt-4">

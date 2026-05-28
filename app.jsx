@@ -221,10 +221,11 @@ const canSee = (user, routeId) => {
 const firstVisibleRoute = (user) => Object.keys(ROUTE_PERMS).find(r => canSee(user, r)) || 'consult/kanban';
 
 const CONSULTORA_COLS = [
-  { id: 'backlog',    label: 'Backlog' },
-  { id: 'in_progress',label: 'En progreso' },
-  { id: 'in_review',  label: 'En revisión' },
-  { id: 'done',       label: 'Listo' },
+  { id: 'backlog',          label: 'Backlog' },
+  { id: 'in_progress',      label: 'En progreso' },
+  { id: 'esperando',        label: 'Esperando respuesta' },
+  { id: 'in_review',        label: 'En revisión' },
+  { id: 'done',             label: 'Listo' },
 ];
 
 /* Columnas del Kanban de Prospects — espejan los estados del Jira */
@@ -545,7 +546,9 @@ const NAV = [
     { id: 'max/analisis',  label: 'Análisis + WhatsApp', icon: 'send' },
     { id: 'max/prospects', label: 'Pipeline ventas', icon: 'pipeline' },
     { id: 'max/tasks',     label: 'Tareas equipo',   icon: 'task' },
-    { id: 'max/sala',      label: 'Sala MaximUs',    icon: 'calendar' },
+  ]},
+  { group: 'Equipo', items: [
+    { id: 'max/sala',      label: 'Sala de reuniones', icon: 'calendar' },
   ]},
 ];
 

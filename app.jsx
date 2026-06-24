@@ -1,6 +1,10 @@
+/* @jsxRuntime classic */
 /* =====================================================================
    Plataforma Interna — LATAM ConsultUs + MaximUs
    React 18 (UMD) + Tailwind (Play CDN) + localStorage
+   IMPORTANTE: el pragma @jsxRuntime classic de arriba fuerza a Babel a
+   usar React.createElement en vez de 'react/jsx-runtime' (import), que
+   rompería al correr como script no-módulo.
    ===================================================================== */
 
 const { useState, useEffect, useMemo, useReducer, useRef, useCallback,

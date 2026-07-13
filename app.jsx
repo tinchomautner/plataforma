@@ -2382,7 +2382,6 @@ function MaximusPlanComercial() {
                   <tr>
                     <th className="py-2 pr-2">Empresa</th>
                     <th className="pr-2">Contacto</th>
-                    <th className="pr-2">País</th>
                     <th className="pr-2">Motivo / nota</th>
                     <th className="pr-2">Asignado</th>
                     <th className="pr-2"></th>
@@ -2395,7 +2394,6 @@ function MaximusPlanComercial() {
                       <tr key={p.id} className="border-t border-line hover:bg-surface-2/40">
                         <td className="py-2.5 pr-2 font-medium text-ink">{p.empresa}</td>
                         <td className="pr-2 text-ink-2">{p.contacto || '—'}</td>
-                        <td className="pr-2 text-ink-2">{p.pais || '—'}</td>
                         <td className="pr-2">
                           <NotaPlanEditable value={p.nota_plan} onSave={(t) => setNotaPlanProspect(p, t)} />
                         </td>
@@ -2440,7 +2438,6 @@ function MaximusPlanComercial() {
                   <tr>
                     <th className="py-2 pr-2">Cliente</th>
                     <th className="pr-2">Acción</th>
-                    <th className="pr-2">País</th>
                     <th className="pr-2">Score</th>
                     <th className="pr-2 text-right">Sin login</th>
                     <th className="pr-2">Motivo / nota</th>
@@ -2469,7 +2466,6 @@ function MaximusPlanComercial() {
                               : null;
                           })()}
                         </td>
-                        <td className="pr-2 text-ink-2">{c.pais || '—'}</td>
                         <td className="pr-2"><Badge className={SCORE_BADGE[color]}>{score}</Badge></td>
                         <td className={`pr-2 text-right tabular-nums ${(c.dias_sin_login||0) >= 60 ? 'text-bad' : (c.dias_sin_login||0) >= 30 ? 'text-warn' : 'text-muted'}`}>{c.dias_sin_login != null ? `${c.dias_sin_login}d` : '—'}</td>
                         <td className="pr-2">

@@ -195,7 +195,7 @@ const TEAM_SEED = [
   { id: 'u-vr', username: 'vero',     password: 'Vero2026',      perms: 'consultora', nonAssignable: true,  name: 'Verónica Rey',     initials: 'VR', role: 'Directora ejecutiva',                units: ['consultora','maximus'], color: '#06b6d4' },
   { id: 'u-mm', username: 'mautner',  password: 'Martin2026',    perms: 'admin',      nonAssignable: true,  name: 'Martín Mautner',   initials: 'MM', role: 'Director de producto',               units: ['consultora','maximus'], color: '#0066CC' },
   { id: 'u-da', username: 'debo',     password: 'Debo2026',      perms: 'consultora',                       name: 'Deborah Amatti',   initials: 'DA', role: 'Directora de estrategia',            units: ['consultora'],           color: '#ec4899' },
-  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora',                       name: 'Pablo Machado',    initials: 'PM', role: 'Director analista de crédito',       units: ['consultora'],           color: '#14b8a6' },
+  { id: 'u-pm', username: 'pablo',    password: 'Pablo2026',     perms: 'consultora', extraPerms: ['maximus'], name: 'Pablo Machado',    initials: 'PM', role: 'Director analista de crédito',       units: ['consultora','maximus'], color: '#14b8a6' },
   { id: 'u-em', username: 'emeterio', password: 'Emeterio2026',  perms: 'consultora',                       name: 'Emeterio Morales', initials: 'EM', role: 'Director analista de portafolios',   units: ['consultora'],           color: '#a855f7' },
   { id: 'u-mn', username: 'nogues',   password: 'Nogues2026',    perms: 'consultora',                       name: 'Martín Nogués',    initials: 'MN', role: 'Director analista de renta variable',units: ['consultora'],           color: '#f97316' },
   { id: 'u-ma', username: 'mati',     password: 'Mati2026',      perms: 'consultora',                       name: 'Matías Acevedo',   initials: 'MA', role: 'Analista de portafolios',            units: ['consultora'],           color: '#3b82f6' },
@@ -220,7 +220,10 @@ const ROUTE_PERMS = {
 const canSee = (user, routeId) => {
   if (!user) return false;
   const allowed = ROUTE_PERMS[routeId];
-  return allowed && allowed.includes(user.perms);
+  if (!allowed) return false;
+  // El usuario ve la ruta si su perms principal O alguno de sus extraPerms está permitido
+  const perms = [user.perms, ...(user.extraPerms || [])];
+  return perms.some(p => allowed.includes(p));
 };
 const firstVisibleRoute = (user) => Object.keys(ROUTE_PERMS).find(r => canSee(user, r)) || 'consult/kanban';
 

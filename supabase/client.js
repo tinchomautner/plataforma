@@ -215,9 +215,11 @@
       // Map team: non_assignable (DB) → nonAssignable (cliente)
       // Fallback hardcoded en caso de que la columna no exista todavía
       const NON_ASSIGNABLE_DEFAULT = ['u-mm','u-sh','u-vr','u-fd','u-pl'];
+      const EXTRA_PERMS_DEFAULT = { 'u-pm': ['maximus'] }; // Pablo ve también MaximUs
       const teamMapped = (team.data || []).map(t => ({
         ...t,
         nonAssignable: t.non_assignable != null ? !!t.non_assignable : NON_ASSIGNABLE_DEFAULT.includes(t.id),
+        extraPerms: t.extra_perms != null ? t.extra_perms : (EXTRA_PERMS_DEFAULT[t.id] || []),
       }));
 
       // Fallback: si la columna asignado_a no existe en Supabase aún,

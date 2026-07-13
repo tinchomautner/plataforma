@@ -2268,7 +2268,10 @@ function MaximusPlanComercial() {
   const { state, dispatch, me } = useApp();
   const clients = state.maximus.clients;
   const prospects = state.maximus.prospects;
-  const admins = state.team.filter(u => u.perms === 'admin');
+  // Personas a las que se puede asignar trabajo comercial en el Plan
+  const ASIGNABLES_PLAN = ['u-mm', 'u-sh', 'u-pm']; // Mautner, De Haedo, Pablo Machado
+  const admins = state.team.filter(u => ASIGNABLES_PLAN.includes(u.id))
+    .sort((a, b) => ASIGNABLES_PLAN.indexOf(a.id) - ASIGNABLES_PLAN.indexOf(b.id));
   const [filterAsignacion, setFilterAsignacion] = useState('todos');
   const [filterCategoria, setFilterCategoria] = useState('');
   const [search, setSearch] = useState('');

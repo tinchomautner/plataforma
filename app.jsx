@@ -2659,11 +2659,19 @@ function MaximusProspects() {
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterPais, setFilterPais] = useState('');
+
+  const paises = useMemo(() =>
+    Array.from(new Set(state.maximus.prospects.map(p => p.pais).filter(Boolean))).sort(),
+    [state.maximus.prospects]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
-    return state.maximus.prospects.filter(p => !s || `${p.empresa} ${p.contacto} ${p.producto}`.toLowerCase().includes(s));
-  }, [state.maximus.prospects, search]);
+    return state.maximus.prospects.filter(p =>
+      (!s || `${p.empresa} ${p.contacto} ${p.producto} ${p.pais || ''}`.toLowerCase().includes(s)) &&
+      (!filterPais || p.pais === filterPais)
+    );
+  }, [state.maximus.prospects, search, filterPais]);
 
   const byCol = useMemo(() => {
     const m = Object.fromEntries(PROSPECT_COLS.map(c => [c.id, []]));
@@ -2687,8 +2695,12 @@ function MaximusProspects() {
         actions={<>
           <div className="relative">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar…" className="!pl-8 !py-2 !text-sm" style={{ width: 220 }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar…" className="!pl-8 !py-2 !text-sm" style={{ width: 200 }} />
           </div>
+          <select value={filterPais} onChange={e => setFilterPais(e.target.value)} className="!py-2 !text-sm" style={{ width: 160 }}>
+            <option value="">Todos los países</option>
+            {paises.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
           <Btn onClick={() => setCreating(true)}><Icon name="plus" size={16} />Nuevo prospect</Btn>
         </>}
       />

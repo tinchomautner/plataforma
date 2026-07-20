@@ -3043,7 +3043,22 @@ function useStore() {
     const onFailed = () => forceRender();
     window.addEventListener('supa-ready', onReady);
     window.addEventListener('supa-failed', onFailed);
+
+    // El evento 'supa-ready' puede dispararse ANTES de que React monte
+    // (la librería local carga muy rápido). Si eso pasa el evento se
+    // pierde y la app queda con los seeds. Por eso además consultamos
+    // el estado actual y hacemos polling corto hasta resolver.
+    if (window.SUPA?.enabled) setSupaReady(true);
+    let polls = 0;
+    const iv = setInterval(() => {
+      polls++;
+      if (window.SUPA?.enabled) { setSupaReady(true); clearInterval(iv); }
+      else if (window.SUPA && window.SUPA.enabled === false) { forceRender(); clearInterval(iv); }
+      else if (polls > 100) clearInterval(iv); // 20s
+    }, 200);
+
     return () => {
+      clearInterval(iv);
       window.removeEventListener('supa-ready', onReady);
       window.removeEventListener('supa-failed', onFailed);
     };

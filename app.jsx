@@ -619,6 +619,11 @@ function Sidebar({ route, setRoute, me, onLogout, counters, synced, mobileOpen, 
               <span className="w-1.5 h-1.5 rounded-full bg-ok" />
               Sincronizado con equipo
             </>
+          ) : window.SUPA && window.SUPA.enabled === false && window.SUPABASE_CFG ? (
+            <button onClick={() => location.reload()} className="flex items-center gap-1.5 text-bad hover:underline" title="No se pudo conectar con la base. Click para reintentar.">
+              <span className="w-1.5 h-1.5 rounded-full bg-bad" />
+              Sin conexión · Reintentar
+            </button>
           ) : window.SUPABASE_CFG ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
@@ -3031,13 +3036,17 @@ function PageHeader({ title, subtitle, actions }) {
 function useStore() {
   const [state, baseDispatch] = useReducer(reducer, null, initialState);
   const [supaReady, setSupaReady] = useState(() => !!window.SUPA?.enabled);
+  const [, forceRender] = useReducer(x => x + 1, 0); // para refrescar el indicador si falla
 
   useEffect(() => {
-    if (!window.SUPA && window.SUPABASE_CFG) {
-      const onReady = () => setSupaReady(!!window.SUPA?.enabled);
-      window.addEventListener('supa-ready', onReady);
-      return () => window.removeEventListener('supa-ready', onReady);
-    }
+    const onReady  = () => setSupaReady(!!window.SUPA?.enabled);
+    const onFailed = () => forceRender();
+    window.addEventListener('supa-ready', onReady);
+    window.addEventListener('supa-failed', onFailed);
+    return () => {
+      window.removeEventListener('supa-ready', onReady);
+      window.removeEventListener('supa-failed', onFailed);
+    };
   }, []);
 
   useEffect(() => {

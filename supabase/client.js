@@ -42,17 +42,22 @@
     if (window.supabase) { initialized = true; init(); }
   }
 
-  // CDNs en orden de preferencia (si uno falla, prueba el siguiente)
+  // Fuentes en orden de preferencia. La primera es LOCAL (mismo servidor que
+  // la app) para que ningún firewall / adblocker corporativo la bloquee.
+  // Los CDNs quedan solo como respaldo.
   const CDNS = [
+    './vendor/supabase.min.js',
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
     'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js',
-    'https://cdn.skypack.dev/@supabase/supabase-js@2',
   ];
 
   function tryLoadCDN(idx) {
     if (idx >= CDNS.length) {
-      console.error('[plataforma] Todos los CDN de supabase-js fallaron');
-      if (!initialized) window.SUPA = { enabled: false };
+      console.error('[plataforma] No se pudo cargar supabase-js de ninguna fuente');
+      if (!initialized) {
+        window.SUPA = { enabled: false };
+        window.dispatchEvent(new CustomEvent('supa-failed'));
+      }
       return;
     }
     const s = document.createElement('script');
@@ -76,6 +81,7 @@
         if (!initialized) {
           console.error('[plataforma] Timeout esperando supabase-js');
           window.SUPA = { enabled: false };
+          window.dispatchEvent(new CustomEvent('supa-failed'));
         }
       }
     }, 200);

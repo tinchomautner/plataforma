@@ -1800,159 +1800,273 @@ function MaximusPanama() {
   const { state, dispatch, me } = useApp();
   const firmas = (typeof window !== 'undefined' && window.SEED_PANAMA) || [];
   const agenda = state.maximus.panamaAgenda || [];
-  const [tab, setTab] = useState('firmas'); // firmas | agenda
+  const [tab, setTab] = useState('cliente');   // cliente | contactado | frio
   const [search, setSearch] = useState('');
-  const [filterGrupo, setFilterGrupo] = useState('');
-  const [filterPrioridad, setFilterPrioridad] = useState('');
+  const [orden, setOrden] = useState('prio');  // prio | az
   const [detalle, setDetalle] = useState(null);
+  const [drag, setDrag] = useState(null);      // firmaId siendo arrastrada
 
   const agendaPorFirma = useMemo(() => Object.fromEntries(agenda.map(a => [a.firmaId, a])), [agenda]);
+  const agendadas = useMemo(() => agenda.filter(a => a.dia && a.hora), [agenda]);
 
-  const filtradas = useMemo(() => {
+  const PRIO_ORD = { alta: 0, media: 1, baja: 2 };
+  const matches = (f) => {
     const s = search.toLowerCase();
-    return firmas.filter(f =>
-      (!s || `${f.empresa} ${f.contacto || ''} ${f.notas || ''}`.toLowerCase().includes(s)) &&
-      (!filterGrupo || f.grupo === filterGrupo) &&
-      (!filterPrioridad || f.prioridad === filterPrioridad)
-    );
-  }, [firmas, search, filterGrupo, filterPrioridad]);
+    return !s || `${f.empresa} ${f.contacto || ''} ${f.notas || ''}`.toLowerCase().includes(s);
+  };
 
-  const stats = useMemo(() => ({
-    total: firmas.length,
-    agendadas: agenda.filter(a => a.dia && a.hora).length,
-    alta: firmas.filter(f => f.prioridad === 'alta').length,
-    clientes: firmas.filter(f => f.grupo === 'cliente').length,
-  }), [firmas, agenda]);
+  const delTab = useMemo(() => firmas.filter(f => f.grupo === tab && matches(f)), [firmas, tab, search]);
+  const pendientes = useMemo(() => {
+    const arr = delTab.filter(f => !agendaPorFirma[f.id]?.dia);
+    return arr.sort((a, b) => orden === 'az'
+      ? a.empresa.localeCompare(b.empresa)
+      : (PRIO_ORD[a.prioridad] - PRIO_ORD[b.prioridad]) || a.empresa.localeCompare(b.empresa));
+  }, [delTab, agendaPorFirma, orden]);
+  const yaAgendadas = useMemo(() =>
+    delTab.filter(f => agendaPorFirma[f.id]?.dia)
+      .sort((a, b) => {
+        const A = agendaPorFirma[a.id], B = agendaPorFirma[b.id];
+        return (A.dia + A.hora).localeCompare(B.dia + B.hora);
+      }),
+    [delTab, agendaPorFirma]);
 
-  const guardarAgenda = (firmaId, patch) => {
+  const countGrupo = (g) => {
+    const t = firmas.filter(f => f.grupo === g);
+    return { total: t.length, sinAgendar: t.filter(f => !agendaPorFirma[f.id]?.dia).length };
+  };
+
+  const stats = useMemo(() => {
+    const tot  = firmas.length;
+    const ag   = agendadas.length;
+    const conf = agendadas.filter(a => a.estado === 'confirmado').length;
+    const usados = agendadas.reduce((s, a) => s + (a.duracion || 60), 0);
+    const libres = (PANAMA_DIAS.length * 12 * 60 - usados) / 60;
+    return {
+      tot, ag, conf,
+      clientes:  firmas.filter(f => f.grupo === 'cliente').length,
+      prospectos: firmas.filter(f => f.grupo !== 'cliente').length,
+      alta: firmas.filter(f => f.grupo !== 'cliente' && f.prioridad === 'alta').length,
+      libres: libres.toFixed(1),
+    };
+  }, [firmas, agendadas]);
+
+  const guardar = (firmaId, patch) => {
     const actual = agendaPorFirma[firmaId] || { firmaId };
     dispatch({ type: 'PANAMA_UPSERT', a: { ...actual, ...patch, firmaId, actualizadoPor: me.id } });
   };
-  const quitarDeAgenda = (firmaId) => dispatch({ type: 'PANAMA_DELETE', firmaId });
+  const quitar = (firmaId) => dispatch({ type: 'PANAMA_DELETE', firmaId });
+
+  // Agendar por drag & drop sobre una celda del calendario
+  const dropEn = (diaId, hora) => {
+    if (!drag) return;
+    const ya = agendadas.find(a => a.dia === diaId && a.hora === hora && a.firmaId !== drag);
+    if (ya) return; // ocupado
+    guardar(drag, { dia: diaId, hora, duracion: agendaPorFirma[drag]?.duracion || 60, estado: agendaPorFirma[drag]?.estado || 'propuesto' });
+    setDrag(null);
+  };
+
+  const SLOT_H = 26; // px por bloque de 30 min
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader
-        title="Viaje Panamá"
-        subtitle={`Research y agenda del viaje comercial · 17, 18 y 21 de agosto 2026 · ${stats.agendadas} de ${stats.total} firmas agendadas`}
-        actions={<>
-          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
-            {[['firmas','Firmas'],['agenda','Agenda']].map(([id,label]) => (
-              <button key={id} onClick={() => setTab(id)}
-                className={`px-3 py-1.5 text-xs rounded-md ${tab===id ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
-            ))}
+      {/* Topbar propio de la sección */}
+      <div className="px-3 sm:px-6 py-3 border-b border-line flex items-center gap-3 flex-wrap bg-bg">
+        <div className="flex items-baseline gap-2.5">
+          <h1 className="text-lg font-bold text-ink">Agenda Panamá</h1>
+          <span className="text-[11px] text-muted">LATAM ConsultUs · MaximUs</span>
+        </div>
+        <div className="flex gap-1.5">
+          {PANAMA_DIAS.map(d => (
+            <span key={d.id} className="px-2.5 py-1 rounded-full bg-surface border border-line text-[11px] text-ink-2">
+              {d.dow} {d.label.split(' ')[0]} · <b className="tabular-nums text-ink">{agendadas.filter(a => a.dia === d.id).length}</b>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="px-3 sm:px-6 pt-3.5 flex gap-2.5 flex-wrap">
+        {[
+          ['Fichas totales', stats.tot, `${stats.clientes} clientes · ${stats.prospectos} prospectos`],
+          ['Agendadas', stats.ag, `${stats.conf} confirmadas · ${stats.ag - stats.conf} a confirmar`],
+          ['Pendientes de agendar', stats.tot - stats.ag, 'Siguen en la lista de la izquierda'],
+          ['Prioridad alta', stats.alta, `de ${stats.prospectos} prospectos`],
+          ['Horas libres', stats.libres, 'Sobre 12 h por día × 3 días'],
+        ].map(([k, v, h]) => (
+          <div key={k} className="bg-bg border border-line rounded-[10px] card-shadow px-3.5 py-2.5 flex-1" style={{ minWidth: 132 }}>
+            <div className="text-[10px] uppercase tracking-wider text-muted">{k}</div>
+            <div className="text-2xl font-bold text-ink tabular-nums leading-tight mt-0.5">{v}</div>
+            <div className="text-[10.5px] text-muted mt-0.5">{h}</div>
           </div>
-          {tab === 'firmas' && <>
-            <div className="relative">
-              <Icon name="search" size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar firma…" className="!pl-8 !py-2 !text-xs" style={{ width: 180 }} />
+        ))}
+      </div>
+
+      {/* Layout: lista + calendario */}
+      <div className="flex-1 overflow-hidden px-3 sm:px-6 py-3.5">
+        <div className="grid gap-3.5 h-full" style={{ gridTemplateColumns: 'minmax(300px, 370px) 1fr' }}>
+
+          {/* Panel izquierdo */}
+          <div className="bg-bg border border-line rounded-[10px] card-shadow overflow-hidden flex flex-col">
+            <div className="flex gap-0.5 px-2 pt-2 bg-surface border-b border-line">
+              {[['cliente','Clientes'],['contactado','Prospectos con contacto'],['frio','Prospectos sin contacto']].map(([id,label]) => {
+                const c = countGrupo(id);
+                const activo = tab === id;
+                return (
+                  <button key={id} onClick={() => setTab(id)}
+                    className={`flex-1 text-center px-1.5 py-2 text-[11.5px] font-semibold rounded-t-lg leading-tight border border-b-0 transition
+                      ${activo ? 'bg-bg text-gold border-line' : 'text-muted border-transparent hover:text-ink'}`}>
+                    {label}
+                    <div className="text-[10px] font-normal text-muted mt-0.5">{c.sinAgendar} de {c.total} sin agendar</div>
+                  </button>
+                );
+              })}
             </div>
-            <select value={filterGrupo} onChange={e => setFilterGrupo(e.target.value)} className="!py-2 !text-xs" style={{ width: 140 }}>
-              <option value="">Todos</option>
-              <option value="cliente">Clientes</option>
-              <option value="contactado">Contactados</option>
-              <option value="frio">Sin contacto</option>
-            </select>
-            <select value={filterPrioridad} onChange={e => setFilterPrioridad(e.target.value)} className="!py-2 !text-xs" style={{ width: 130 }}>
-              <option value="">Toda prioridad</option>
-              <option value="alta">Alta</option>
-              <option value="media">Media</option>
-              <option value="baja">Baja</option>
-            </select>
-          </>}
-        </>}
-      />
 
-      <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto space-y-5">
-        {tab === 'firmas' && <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard title="Firmas" value={stats.total} hint="clientes + prospects" />
-            <StatCard title="Agendadas" value={stats.agendadas} hint={`de ${stats.total}`} />
-            <StatCard title="Prioridad alta" value={stats.alta} />
-            <StatCard title="Clientes" value={stats.clientes} hint="el resto son prospects" />
-          </div>
+            <div className="flex gap-2 p-2.5 border-b border-line">
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar empresa, contacto, referencia…" className="!py-1.5 !text-xs flex-1" />
+              <select value={orden} onChange={e => setOrden(e.target.value)} className="!py-1.5 !text-xs" style={{ width: 108 }}>
+                <option value="prio">Prioridad</option>
+                <option value="az">A–Z</option>
+              </select>
+            </div>
 
-          <Panel title={`Firmas (${filtradas.length} de ${firmas.length})`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
-                  <tr>
-                    <th className="py-2 pr-2">Firma</th>
-                    <th className="pr-2">Contacto</th>
-                    <th className="pr-2">Tipo</th>
-                    <th className="pr-2">Prioridad</th>
-                    <th className="pr-2">Agenda</th>
-                    <th className="pr-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtradas.map(f => {
-                    const ag = agendaPorFirma[f.id];
-                    const dia = ag?.dia ? PANAMA_DIAS.find(d => d.id === ag.dia) : null;
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+              {tab !== 'cliente' && (
+                <div className="text-[10.5px] text-ink-2 bg-surface-2/60 border border-line rounded-lg p-2.5 leading-relaxed">
+                  Las casas de valores de Panamá administran <b>USD 14.406 M</b> (+23% interanual a octubre 2025) y el <b>89%</b> de lo que operan es mercado internacional. <span className="text-muted">Fuente: SMV.</span>
+                </div>
+              )}
+
+              {pendientes.map(f => (
+                <div key={f.id}
+                  draggable
+                  onDragStart={() => setDrag(f.id)}
+                  onDragEnd={() => setDrag(null)}
+                  className="border border-line rounded-lg bg-bg p-2.5 cursor-grab active:cursor-grabbing hover:border-gold/40 transition"
+                  style={{ borderLeft: `3px solid ${f.prioridad === 'alta' ? '#E74C3C' : f.prioridad === 'media' ? '#FF9500' : '#C9CEE0'}` }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink text-[13px] leading-tight">{f.empresa}</div>
+                      {f.contacto && <div className="text-[11px] text-ink-2 line-clamp-1 mt-0.5">{f.contacto}</div>}
+                    </div>
+                    <button onClick={() => setDetalle(f)}
+                      className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded-md bg-gold text-white hover:bg-gold-2 transition">
+                      Agendar
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {pendientes.length === 0 && (
+                <div className="text-[11.5px] text-muted italic text-center py-6">No queda nadie sin agendar en esta pestaña.</div>
+              )}
+
+              {yaAgendadas.length > 0 && (
+                <>
+                  <div className="mt-1.5 pt-2.5 border-t border-line text-[10.5px] uppercase tracking-wider text-muted font-semibold">
+                    Ya agendados ({yaAgendadas.length})
+                  </div>
+                  {yaAgendadas.map(f => {
+                    const a = agendaPorFirma[f.id];
+                    const d = PANAMA_DIAS.find(x => x.id === a.dia);
                     return (
-                      <tr key={f.id} className="border-t border-line hover:bg-surface-2/40">
-                        <td className="py-2.5 pr-2">
-                          <div className="font-medium text-ink">{f.empresa}</div>
-                          {f.objetivo && <div className="text-[10.5px] text-muted line-clamp-1" title={f.objetivo}>{f.objetivo}</div>}
-                        </td>
-                        <td className="pr-2 text-ink-2 text-[12px] max-w-[200px]"><div className="line-clamp-2">{f.contacto || <span className="text-muted italic">sin contacto</span>}</div></td>
-                        <td className="pr-2"><Badge className={GRUPO_BADGE[f.grupo] || GRUPO_BADGE.frio}>{GRUPO_LABEL[f.grupo] || f.grupo}</Badge></td>
-                        <td className="pr-2"><Badge className={PRIORIDAD_BADGE[f.prioridad] || PRIORIDAD_BADGE.baja}>{f.prioridad}</Badge></td>
-                        <td className="pr-2 text-[11px] tabular-nums">
-                          {dia
-                            ? <span className="text-ink">{dia.dow} {ag.hora}</span>
-                            : <span className="text-muted italic">—</span>}
-                        </td>
-                        <td className="pr-2 whitespace-nowrap text-right">
-                          <button onClick={() => setDetalle(f)}
-                            className="px-2 py-1 text-[11px] rounded border border-line text-ink-2 hover:border-gold/40 hover:text-ink">
-                            Ver ficha
-                          </button>
-                        </td>
-                      </tr>
+                      <div key={f.id} onClick={() => setDetalle(f)}
+                        className="border border-line rounded-lg bg-bg p-2.5 cursor-pointer opacity-70 hover:opacity-100 transition"
+                        style={{ borderLeft: '3px solid #27AE60' }}>
+                        <div className="font-semibold text-ink text-[12.5px]">{f.empresa}</div>
+                        <div className="text-[11px] text-muted tabular-nums mt-0.5">{d?.dow} {a.hora} · {a.duracion} min</div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </>
+              )}
             </div>
-          </Panel>
-        </>}
 
-        {tab === 'agenda' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {PANAMA_DIAS.map(d => {
-              const delDia = agenda
-                .filter(a => a.dia === d.id && a.hora)
-                .sort((a, b) => a.hora.localeCompare(b.hora));
-              return (
-                <Panel key={d.id} title={`${d.dow} ${d.label}`}>
-                  {delDia.length === 0
-                    ? <div className="text-[12px] text-muted italic py-6 text-center">Sin reuniones agendadas</div>
-                    : (
-                      <div className="space-y-2">
-                        {delDia.map(a => {
-                          const f = firmas.find(x => x.id === a.firmaId);
-                          if (!f) return null;
-                          return (
-                            <div key={a.firmaId} onClick={() => setDetalle(f)}
-                              className="p-2.5 rounded-lg border border-line bg-bg hover:border-gold/40 cursor-pointer">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-semibold text-gold tabular-nums">{a.hora}</span>
-                                <span className="text-[10px] text-muted">{a.duracion} min</span>
-                              </div>
-                              <div className="font-medium text-ink text-[13px] mt-0.5">{f.empresa}</div>
-                              {f.contacto && <div className="text-[10.5px] text-ink-2 line-clamp-1">{f.contacto}</div>}
-                              {a.nota && <div className="text-[10.5px] text-muted italic mt-1 line-clamp-2">{a.nota}</div>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                </Panel>
-              );
-            })}
+            <div className="px-3 py-2 border-t border-line text-[11px] text-muted">
+              Arrastrá al día y hora, o tocá <b>Agendar</b>. Al agendarla sale de esta lista.
+            </div>
           </div>
-        )}
+
+          {/* Calendario */}
+          <div className="bg-bg border border-line rounded-[10px] card-shadow overflow-hidden flex flex-col">
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-line">
+              <h2 className="text-sm font-semibold text-ink">Calendario del viaje</h2>
+              <span className="text-[11px] text-muted">Hora de Panamá (GMT-5)</span>
+              <div className="flex-1" />
+              <span className="text-[11px] text-muted">{agendadas.length} reuniones agendadas</span>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {/* Cabecera de días */}
+              <div className="grid sticky top-0 z-10 bg-bg border-b border-line" style={{ gridTemplateColumns: '52px repeat(3, 1fr)' }}>
+                <div />
+                {PANAMA_DIAS.map(d => (
+                  <div key={d.id} className="px-3 py-2 border-l border-line">
+                    <div className="font-semibold text-ink text-[13px]">{d.dow}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted">{d.label}</div>
+                    <div className="text-[10px] text-muted mt-0.5">{agendadas.filter(a => a.dia === d.id).length} reuniones</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Grilla */}
+              <div className="grid" style={{ gridTemplateColumns: '52px repeat(3, 1fr)' }}>
+                {/* Columna de horas */}
+                <div>
+                  {PANAMA_HORAS.map((h, i) => (
+                    <div key={h} className="text-[10px] text-muted text-right pr-2 tabular-nums"
+                      style={{ height: SLOT_H, lineHeight: `${SLOT_H}px` }}>
+                      {h.endsWith(':00') ? h : ''}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Columnas de días */}
+                {PANAMA_DIAS.map(d => (
+                  <div key={d.id} className="relative border-l border-line">
+                    {PANAMA_HORAS.map((h) => (
+                      <div key={h}
+                        onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('bg-gold/10'); }}
+                        onDragLeave={e => e.currentTarget.classList.remove('bg-gold/10')}
+                        onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('bg-gold/10'); dropEn(d.id, h); }}
+                        className={`transition ${h.endsWith(':00') ? 'border-t border-line' : 'border-t border-dashed border-surface-3'}`}
+                        style={{ height: SLOT_H }} />
+                    ))}
+
+                    {/* Reuniones */}
+                    {agendadas.filter(a => a.dia === d.id).map(a => {
+                      const f = firmas.find(x => x.id === a.firmaId);
+                      if (!f) return null;
+                      const idx = PANAMA_HORAS.indexOf(a.hora);
+                      if (idx < 0) return null;
+                      const alto = Math.max((a.duracion || 60) / 30 * SLOT_H, SLOT_H);
+                      const conf = a.estado === 'confirmado';
+                      return (
+                        <div key={a.firmaId}
+                          draggable
+                          onDragStart={() => setDrag(a.firmaId)}
+                          onDragEnd={() => setDrag(null)}
+                          onClick={() => setDetalle(f)}
+                          className="absolute rounded-md px-1.5 py-1 overflow-hidden cursor-pointer hover:brightness-95 transition"
+                          style={{
+                            top: idx * SLOT_H, height: alto, left: 4, right: 4,
+                            background: conf ? 'rgba(39,174,96,.10)' : 'rgba(0,102,204,.09)',
+                            border: `1px solid ${conf ? 'rgba(39,174,96,.35)' : 'rgba(0,102,204,.35)'}`,
+                            borderLeft: `3px solid ${conf ? '#27AE60' : '#0066CC'}`,
+                          }}>
+                          <div className="text-[11px] font-semibold text-ink leading-tight truncate">{f.empresa}</div>
+                          {alto > 34 && f.contacto && <div className="text-[10px] text-ink-2 truncate">{f.contacto}</div>}
+                          {alto > 50 && <div className="text-[10px] text-muted tabular-nums">{a.hora} · {a.duracion} min</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {detalle && (
@@ -1960,8 +2074,8 @@ function MaximusPanama() {
           firma={detalle}
           agenda={agendaPorFirma[detalle.id]}
           onClose={() => setDetalle(null)}
-          onSave={(patch) => guardarAgenda(detalle.id, patch)}
-          onQuitar={() => { quitarDeAgenda(detalle.id); setDetalle(null); }}
+          onSave={(patch) => guardar(detalle.id, patch)}
+          onQuitar={() => { quitar(detalle.id); setDetalle(null); }}
         />
       )}
     </div>

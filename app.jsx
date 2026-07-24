@@ -215,6 +215,7 @@ const ROUTE_PERMS = {
   'max/analisis':     ['admin','maximus'],
   'max/prospects':    ['admin','maximus'],
   'max/tasks':        ['admin','maximus'],
+  'max/panama':       ['admin','maximus'],
   'max/sala':         ['admin','maximus','consultora'],
 };
 const canSee = (user, routeId) => {
@@ -309,7 +310,7 @@ const initialState = () => {
   return {
     team: TEAM_SEED,
     consultora: { cards: seedConsultora() },
-    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [], reservas: [] },
+    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [], reservas: [], panamaAgenda: [] },
   };
 };
 
@@ -358,6 +359,18 @@ function reducer(state, action) {
     case 'ANALISIS_ADD':    return { ...state, maximus: { ...state.maximus, analisis: [action.a, ...(state.maximus.analisis||[])] } };
     case 'ANALISIS_DELETE': return { ...state, maximus: { ...state.maximus, analisis: (state.maximus.analisis||[]).filter(a => a.id !== action.id) } };
     case 'ENVIO_ADD':       return { ...state, maximus: { ...state.maximus, envios: [action.e, ...(state.maximus.envios||[])] } };
+
+    /* Agenda Panamá */
+    case 'PANAMA_UPSERT': {
+      const list = state.maximus.panamaAgenda || [];
+      const exists = list.some(a => a.firmaId === action.a.firmaId);
+      const panamaAgenda = exists
+        ? list.map(a => a.firmaId === action.a.firmaId ? { ...a, ...action.a } : a)
+        : [...list, action.a];
+      return { ...state, maximus: { ...state.maximus, panamaAgenda } };
+    }
+    case 'PANAMA_DELETE':
+      return { ...state, maximus: { ...state.maximus, panamaAgenda: (state.maximus.panamaAgenda || []).filter(a => a.firmaId !== action.firmaId) } };
 
     /* Reservas sala */
     case 'RESERVA_UPSERT': {
@@ -553,6 +566,7 @@ const NAV = [
     { id: 'max/analisis',  label: 'Análisis + WhatsApp', icon: 'send' },
     { id: 'max/prospects', label: 'Pipeline ventas', icon: 'pipeline' },
     { id: 'max/tasks',     label: 'Tareas equipo',   icon: 'task' },
+    { id: 'max/panama',    label: 'Viaje Panamá',    icon: 'pin' },
   ]},
   { group: 'Equipo', items: [
     { id: 'max/sala',      label: 'Sala de reuniones', icon: 'calendar' },
@@ -1752,6 +1766,286 @@ function MaximusUsage() {
         }}
       />
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   MAXIMUS — VIAJE PANAMÁ (research + agenda de los 3 días)
+   ───────────────────────────────────────────────────────────────────── */
+const PANAMA_DIAS = [
+  { id: '2026-08-17', dow: 'Lunes',   label: '17 de agosto' },
+  { id: '2026-08-18', dow: 'Martes',  label: '18 de agosto' },
+  { id: '2026-08-21', dow: 'Viernes', label: '21 de agosto' },
+];
+const PANAMA_HORAS = (() => {
+  const out = [];
+  for (let m = 8 * 60; m < 20 * 60; m += 30) {
+    out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  }
+  return out;
+})();
+const PRIORIDAD_BADGE = {
+  alta:  'bg-bad/10 text-bad border-bad/30',
+  media: 'bg-warn/15 text-warn border-warn/30',
+  baja:  'bg-surface-2 text-ink-2 border-line',
+};
+const GRUPO_LABEL = { cliente: 'Cliente', contactado: 'Contactado', frio: 'Sin contacto' };
+const GRUPO_BADGE = {
+  cliente:    'bg-ok/10 text-ok border-ok/30',
+  contactado: 'bg-info/10 text-info border-info/30',
+  frio:       'bg-surface-2 text-muted border-line',
+};
+
+function MaximusPanama() {
+  const { state, dispatch, me } = useApp();
+  const firmas = (typeof window !== 'undefined' && window.SEED_PANAMA) || [];
+  const agenda = state.maximus.panamaAgenda || [];
+  const [tab, setTab] = useState('firmas'); // firmas | agenda
+  const [search, setSearch] = useState('');
+  const [filterGrupo, setFilterGrupo] = useState('');
+  const [filterPrioridad, setFilterPrioridad] = useState('');
+  const [detalle, setDetalle] = useState(null);
+
+  const agendaPorFirma = useMemo(() => Object.fromEntries(agenda.map(a => [a.firmaId, a])), [agenda]);
+
+  const filtradas = useMemo(() => {
+    const s = search.toLowerCase();
+    return firmas.filter(f =>
+      (!s || `${f.empresa} ${f.contacto || ''} ${f.notas || ''}`.toLowerCase().includes(s)) &&
+      (!filterGrupo || f.grupo === filterGrupo) &&
+      (!filterPrioridad || f.prioridad === filterPrioridad)
+    );
+  }, [firmas, search, filterGrupo, filterPrioridad]);
+
+  const stats = useMemo(() => ({
+    total: firmas.length,
+    agendadas: agenda.filter(a => a.dia && a.hora).length,
+    alta: firmas.filter(f => f.prioridad === 'alta').length,
+    clientes: firmas.filter(f => f.grupo === 'cliente').length,
+  }), [firmas, agenda]);
+
+  const guardarAgenda = (firmaId, patch) => {
+    const actual = agendaPorFirma[firmaId] || { firmaId };
+    dispatch({ type: 'PANAMA_UPSERT', a: { ...actual, ...patch, firmaId, actualizadoPor: me.id } });
+  };
+  const quitarDeAgenda = (firmaId) => dispatch({ type: 'PANAMA_DELETE', firmaId });
+
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Viaje Panamá"
+        subtitle={`Research y agenda del viaje comercial · 17, 18 y 21 de agosto 2026 · ${stats.agendadas} de ${stats.total} firmas agendadas`}
+        actions={<>
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+            {[['firmas','Firmas'],['agenda','Agenda']].map(([id,label]) => (
+              <button key={id} onClick={() => setTab(id)}
+                className={`px-3 py-1.5 text-xs rounded-md ${tab===id ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
+            ))}
+          </div>
+          {tab === 'firmas' && <>
+            <div className="relative">
+              <Icon name="search" size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar firma…" className="!pl-8 !py-2 !text-xs" style={{ width: 180 }} />
+            </div>
+            <select value={filterGrupo} onChange={e => setFilterGrupo(e.target.value)} className="!py-2 !text-xs" style={{ width: 140 }}>
+              <option value="">Todos</option>
+              <option value="cliente">Clientes</option>
+              <option value="contactado">Contactados</option>
+              <option value="frio">Sin contacto</option>
+            </select>
+            <select value={filterPrioridad} onChange={e => setFilterPrioridad(e.target.value)} className="!py-2 !text-xs" style={{ width: 130 }}>
+              <option value="">Toda prioridad</option>
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baja">Baja</option>
+            </select>
+          </>}
+        </>}
+      />
+
+      <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto space-y-5">
+        {tab === 'firmas' && <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard title="Firmas" value={stats.total} hint="clientes + prospects" />
+            <StatCard title="Agendadas" value={stats.agendadas} hint={`de ${stats.total}`} />
+            <StatCard title="Prioridad alta" value={stats.alta} />
+            <StatCard title="Clientes" value={stats.clientes} hint="el resto son prospects" />
+          </div>
+
+          <Panel title={`Firmas (${filtradas.length} de ${firmas.length})`}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-muted text-[10.5px] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2 pr-2">Firma</th>
+                    <th className="pr-2">Contacto</th>
+                    <th className="pr-2">Tipo</th>
+                    <th className="pr-2">Prioridad</th>
+                    <th className="pr-2">Agenda</th>
+                    <th className="pr-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtradas.map(f => {
+                    const ag = agendaPorFirma[f.id];
+                    const dia = ag?.dia ? PANAMA_DIAS.find(d => d.id === ag.dia) : null;
+                    return (
+                      <tr key={f.id} className="border-t border-line hover:bg-surface-2/40">
+                        <td className="py-2.5 pr-2">
+                          <div className="font-medium text-ink">{f.empresa}</div>
+                          {f.objetivo && <div className="text-[10.5px] text-muted line-clamp-1" title={f.objetivo}>{f.objetivo}</div>}
+                        </td>
+                        <td className="pr-2 text-ink-2 text-[12px] max-w-[200px]"><div className="line-clamp-2">{f.contacto || <span className="text-muted italic">sin contacto</span>}</div></td>
+                        <td className="pr-2"><Badge className={GRUPO_BADGE[f.grupo] || GRUPO_BADGE.frio}>{GRUPO_LABEL[f.grupo] || f.grupo}</Badge></td>
+                        <td className="pr-2"><Badge className={PRIORIDAD_BADGE[f.prioridad] || PRIORIDAD_BADGE.baja}>{f.prioridad}</Badge></td>
+                        <td className="pr-2 text-[11px] tabular-nums">
+                          {dia
+                            ? <span className="text-ink">{dia.dow} {ag.hora}</span>
+                            : <span className="text-muted italic">—</span>}
+                        </td>
+                        <td className="pr-2 whitespace-nowrap text-right">
+                          <button onClick={() => setDetalle(f)}
+                            className="px-2 py-1 text-[11px] rounded border border-line text-ink-2 hover:border-gold/40 hover:text-ink">
+                            Ver ficha
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </>}
+
+        {tab === 'agenda' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {PANAMA_DIAS.map(d => {
+              const delDia = agenda
+                .filter(a => a.dia === d.id && a.hora)
+                .sort((a, b) => a.hora.localeCompare(b.hora));
+              return (
+                <Panel key={d.id} title={`${d.dow} ${d.label}`}>
+                  {delDia.length === 0
+                    ? <div className="text-[12px] text-muted italic py-6 text-center">Sin reuniones agendadas</div>
+                    : (
+                      <div className="space-y-2">
+                        {delDia.map(a => {
+                          const f = firmas.find(x => x.id === a.firmaId);
+                          if (!f) return null;
+                          return (
+                            <div key={a.firmaId} onClick={() => setDetalle(f)}
+                              className="p-2.5 rounded-lg border border-line bg-bg hover:border-gold/40 cursor-pointer">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-semibold text-gold tabular-nums">{a.hora}</span>
+                                <span className="text-[10px] text-muted">{a.duracion} min</span>
+                              </div>
+                              <div className="font-medium text-ink text-[13px] mt-0.5">{f.empresa}</div>
+                              {f.contacto && <div className="text-[10.5px] text-ink-2 line-clamp-1">{f.contacto}</div>}
+                              {a.nota && <div className="text-[10.5px] text-muted italic mt-1 line-clamp-2">{a.nota}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                </Panel>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {detalle && (
+        <PanamaFichaModal
+          firma={detalle}
+          agenda={agendaPorFirma[detalle.id]}
+          onClose={() => setDetalle(null)}
+          onSave={(patch) => guardarAgenda(detalle.id, patch)}
+          onQuitar={() => { quitarDeAgenda(detalle.id); setDetalle(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PanamaFichaModal({ firma, agenda, onClose, onSave, onQuitar }) {
+  const [dia, setDia]       = useState(agenda?.dia || '');
+  const [hora, setHora]     = useState(agenda?.hora || '09:00');
+  const [duracion, setDur]  = useState(agenda?.duracion || 60);
+  const [estado, setEstado] = useState(agenda?.estado || 'propuesto');
+  const [nota, setNota]     = useState(agenda?.nota || '');
+
+  return (
+    <Modal open={true} onClose={onClose} title={firma.empresa} width="max-w-3xl">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <Badge className={GRUPO_BADGE[firma.grupo] || GRUPO_BADGE.frio}>{GRUPO_LABEL[firma.grupo] || firma.grupo}</Badge>
+        <Badge className={PRIORIDAD_BADGE[firma.prioridad] || PRIORIDAD_BADGE.baja}>Prioridad {firma.prioridad}</Badge>
+      </div>
+
+      {firma.contacto && (
+        <div className="mb-3">
+          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Contacto</div>
+          <div className="text-sm text-ink">{firma.contacto}</div>
+        </div>
+      )}
+
+      {firma.objetivo && (
+        <div className="mb-3">
+          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Objetivo de la reunión</div>
+          <div className="text-sm text-ink-2">{firma.objetivo}</div>
+        </div>
+      )}
+
+      {firma.notas && (
+        <div className="mb-4">
+          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Research</div>
+          <div className="text-[12.5px] text-ink-2 whitespace-pre-wrap bg-surface-2/40 border border-line rounded-lg p-3 max-h-64 overflow-y-auto leading-relaxed">
+            {firma.notas}
+          </div>
+        </div>
+      )}
+
+      <div className="hr-soft my-4" />
+      <div className="text-[11px] uppercase tracking-wider text-muted mb-2">Agendar reunión</div>
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-x-4">
+        <Field label="Día">
+          <select value={dia} onChange={e => setDia(e.target.value)}>
+            <option value="">Sin agendar</option>
+            {PANAMA_DIAS.map(d => <option key={d.id} value={d.id}>{d.dow} {d.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Hora">
+          <select value={hora} onChange={e => setHora(e.target.value)} disabled={!dia}>
+            {PANAMA_HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+          </select>
+        </Field>
+        <Field label="Duración">
+          <select value={duracion} onChange={e => setDur(Number(e.target.value))} disabled={!dia}>
+            {[30,60,90,120].map(d => <option key={d} value={d}>{d} min</option>)}
+          </select>
+        </Field>
+        <Field label="Estado">
+          <select value={estado} onChange={e => setEstado(e.target.value)} disabled={!dia}>
+            <option value="propuesto">Propuesto</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </Field>
+      </div>
+      <Field label="Nota de la reunión (opcional)">
+        <textarea rows={2} value={nota} onChange={e => setNota(e.target.value)} placeholder="Lugar, quién va, temas a tratar…" />
+      </Field>
+
+      <div className="flex items-center justify-between pt-1">
+        <div>{agenda?.dia && <Btn variant="danger" onClick={onQuitar}><Icon name="trash" size={14} />Quitar de la agenda</Btn>}</div>
+        <div className="flex gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cerrar</Btn>
+          <Btn onClick={() => { onSave({ dia: dia || null, hora: dia ? hora : null, duracion, estado, nota }); onClose(); }}>
+            <Icon name="check" size={14} />Guardar
+          </Btn>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -3126,6 +3420,8 @@ function useStore() {
         case 'ANALISIS_ADD':    SUPA.upsertAnalisis(action.a); break;
         case 'ANALISIS_DELETE': SUPA.deleteAnalisis(action.id); break;
         case 'ENVIO_ADD':       SUPA.addEnvio(action.e); break;
+        case 'PANAMA_UPSERT':   SUPA.upsertPanama(action.a); break;
+        case 'PANAMA_DELETE':   SUPA.deletePanama(action.firmaId); break;
         case 'RESERVA_UPSERT':  SUPA.upsertReserva(action.r); break;
         case 'RESERVA_DELETE':  SUPA.deleteReserva(action.id); break;
       }
@@ -3177,6 +3473,7 @@ function App() {
     case 'max/analisis':     view = <MaximusAnalisis />;    break;
     case 'max/prospects':    view = <MaximusProspects />;   break;
     case 'max/tasks':        view = <MaximusTasks />;       break;
+    case 'max/panama':       view = <MaximusPanama />;      break;
     case 'max/sala':         view = <MaximusSala />;        break;
     default:                 view = <ConsultoraKanban />;
   }

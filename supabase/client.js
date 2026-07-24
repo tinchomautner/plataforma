@@ -199,7 +199,7 @@
       // Intentar migrar asignaciones locales antes de hidratar
       migrateLocalAsignaciones().catch(() => {});
 
-      const [team, cards, clients, prospects, tasks, comments, analisis, envios, reservas] = await Promise.all([
+      const [team, cards, clients, prospects, tasks, comments, analisis, envios, reservas, panama] = await Promise.all([
         selectAll('team'),
         selectAll('consultora_cards'),
         selectAll('maximus_clients'),
@@ -209,6 +209,7 @@
         selectAll('analisis').catch(() => []),
         selectAll('envios_whatsapp').catch(() => []),
         selectAll('reservas_sala').catch(() => []),
+        selectAll('panama_agenda').catch(() => []),
       ]).then(arr => arr.map(data => ({ data, error: null })));
       const err = [team, cards, clients, prospects, tasks, comments].find(r => r.error);
       if (err) throw err.error;
@@ -270,6 +271,12 @@
             id: e.id, analisisId: e.analisis_id, clienteId: e.cliente_id,
             contacto: e.contacto, telefono: e.telefono, mensaje: e.mensaje,
             enviadoBy: e.enviado_by, enviadoAt: e.enviado_at ? new Date(e.enviado_at).getTime() : null,
+          })),
+          panamaAgenda: (panama.data || []).map(a => ({
+            firmaId: a.firma_id, dia: a.dia, hora: a.hora,
+            duracion: a.duracion ?? 60, estado: a.estado || 'propuesto',
+            nota: a.nota || '',
+            actualizadoPor: a.actualizado_por,
           })),
           reservas: (reservas.data || []).map(r => ({
             id: r.id,
@@ -355,6 +362,16 @@
     }
     async function deleteReserva(id) { return sb.from('reservas_sala').delete().eq('id', id); }
 
+    async function upsertPanama(a) {
+      return sb.from('panama_agenda').upsert({
+        firma_id: a.firmaId, dia: a.dia || null, hora: a.hora || null,
+        duracion: a.duracion ?? 60, estado: a.estado || 'propuesto',
+        nota: a.nota || '', actualizado_por: a.actualizadoPor || null,
+        actualizado_at: new Date().toISOString(),
+      });
+    }
+    async function deletePanama(firmaId) { return sb.from('panama_agenda').delete().eq('firma_id', firmaId); }
+
     function subscribe(onChange) {
       const ch = sb.channel('plataforma-sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'consultora_cards'     }, () => onChange())
@@ -366,6 +383,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'analisis'             }, () => onChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'envios_whatsapp'      }, () => onChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas_sala'        }, () => onChange())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'panama_agenda'        }, () => onChange())
         .subscribe();
       return () => sb.removeChannel(ch);
     }
@@ -379,6 +397,7 @@
       upsertTask, deleteTask, addComment,
       upsertAnalisis, deleteAnalisis, addEnvio,
       upsertReserva, deleteReserva,
+      upsertPanama, deletePanama,
     };
   }
 })();

@@ -1952,7 +1952,7 @@ function MaximusPanama() {
                     </div>
                     <button onClick={() => setDetalle(f)}
                       className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded-md bg-gold text-white hover:bg-gold-2 transition">
-                      Agendar
+                      Ver ficha
                     </button>
                   </div>
                 </div>
@@ -2088,69 +2088,164 @@ function PanamaFichaModal({ firma, agenda, onClose, onSave, onQuitar }) {
   const [duracion, setDur]  = useState(agenda?.duracion || 60);
   const [estado, setEstado] = useState(agenda?.estado || 'propuesto');
   const [nota, setNota]     = useState(agenda?.nota || '');
+  const [ver, setVer]       = useState('research'); // research | agendar
+
+  const f = firma;
+  const Dato = ({ label, children }) => children ? (
+    <div className="mb-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted mb-0.5">{label}</div>
+      <div className="text-[12.5px] text-ink-2 leading-relaxed">{children}</div>
+    </div>
+  ) : null;
 
   return (
-    <Modal open={true} onClose={onClose} title={firma.empresa} width="max-w-3xl">
+    <Modal open={true} onClose={onClose} title={f.empresa} width="max-w-3xl">
+      {/* Badges + tabs */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Badge className={GRUPO_BADGE[firma.grupo] || GRUPO_BADGE.frio}>{GRUPO_LABEL[firma.grupo] || firma.grupo}</Badge>
-        <Badge className={PRIORIDAD_BADGE[firma.prioridad] || PRIORIDAD_BADGE.baja}>Prioridad {firma.prioridad}</Badge>
+        <Badge className={GRUPO_BADGE[f.grupo] || GRUPO_BADGE.frio}>{GRUPO_LABEL[f.grupo] || f.grupo}</Badge>
+        <Badge className={PRIORIDAD_BADGE[f.prioridad] || PRIORIDAD_BADGE.baja}>Prioridad {f.prioridad}</Badge>
+        {typeof f.fit === 'number' && (
+          <Badge className={f.fit >= 4 ? 'bg-ok/10 text-ok border-ok/30' : f.fit >= 3 ? 'bg-warn/15 text-warn border-warn/30' : 'bg-surface-2 text-muted border-line'}>
+            Compatibilidad {f.fit}/5
+          </Badge>
+        )}
+        {f.aum && f.aum !== 'n/d' && <Badge className="bg-surface-2 text-ink-2 border-line">{f.aum}</Badge>}
+        <div className="flex-1" />
+        <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-line">
+          {[['research','Research'],['agendar','Agendar']].map(([id,label]) => (
+            <button key={id} onClick={() => setVer(id)}
+              className={`px-3 py-1 text-[11px] font-semibold rounded-md ${ver===id ? 'bg-gold text-white' : 'text-muted hover:text-ink'}`}>{label}</button>
+          ))}
+        </div>
       </div>
 
-      {firma.contacto && (
-        <div className="mb-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Contacto</div>
-          <div className="text-sm text-ink">{firma.contacto}</div>
+      {f.alerta && (
+        <div className="mb-3 p-2.5 rounded-lg bg-bad/8 border border-bad/30 text-[12px] text-bad flex gap-2">
+          <Icon name="alert" size={14} className="shrink-0 mt-0.5" />
+          <span>{f.alerta}</span>
         </div>
       )}
 
-      {firma.objetivo && (
-        <div className="mb-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Objetivo de la reunión</div>
-          <div className="text-sm text-ink-2">{firma.objetivo}</div>
-        </div>
-      )}
+      {ver === 'research' && (
+        <div className="max-h-[62vh] overflow-y-auto pr-1">
+          <Dato label="Objetivo de la reunión"><b className="text-ink">{f.objetivo}</b></Dato>
+          {f.angulo && <Dato label="Ángulo de entrada">{f.angulo}</Dato>}
 
-      {firma.notas && (
-        <div className="mb-4">
-          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Research</div>
-          <div className="text-[12.5px] text-ink-2 whitespace-pre-wrap bg-surface-2/40 border border-line rounded-lg p-3 max-h-64 overflow-y-auto leading-relaxed">
-            {firma.notas}
+          {f.perfil && (
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted mb-1">Perfil</div>
+              <div className="text-[12.5px] text-ink-2 leading-relaxed bg-surface-2/40 border border-line rounded-lg p-2.5">{f.perfil}</div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 mb-1">
+            <Dato label="Tipo">{f.tipo}</Dato>
+            <Dato label="Grupo financiero">{f.grupoFin}</Dato>
+            <Dato label="Licencia">{f.licencia}</Dato>
+            <Dato label="Foco">{f.foco}</Dato>
+            <Dato label="Equipo">{f.equipo && f.equipo !== 'n/d' ? f.equipo : null}</Dato>
+            <Dato label="Custodios">{f.custodios}</Dato>
+            <Dato label="Tecnología">{f.tech}</Dato>
+            <Dato label="Dirección">{f.dir}</Dato>
           </div>
+
+          {(f.pro?.length > 0 || f.contra?.length > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-3">
+              {f.pro?.length > 0 && (
+                <div className="border border-ok/25 bg-ok/5 rounded-lg p-2.5">
+                  <div className="text-[10px] uppercase tracking-wider text-ok font-semibold mb-1.5">A favor</div>
+                  <ul className="space-y-1.5">
+                    {f.pro.map((p, i) => <li key={i} className="text-[11.5px] text-ink-2 leading-snug flex gap-1.5"><span className="text-ok">·</span><span>{p}</span></li>)}
+                  </ul>
+                </div>
+              )}
+              {f.contra?.length > 0 && (
+                <div className="border border-warn/30 bg-warn/5 rounded-lg p-2.5">
+                  <div className="text-[10px] uppercase tracking-wider text-warn font-semibold mb-1.5">A validar</div>
+                  <ul className="space-y-1.5">
+                    {f.contra.map((c, i) => <li key={i} className="text-[11.5px] text-ink-2 leading-snug flex gap-1.5"><span className="text-warn">·</span><span>{c}</span></li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="hr-soft my-3" />
+          <div className="text-[10px] uppercase tracking-wider text-muted mb-1.5">Contactos</div>
+          {f.contacto && (
+            <div className="mb-2 p-2.5 rounded-lg border border-line bg-bg">
+              <div className="text-[12.5px] font-semibold text-ink">{f.contacto}</div>
+              {f.cargo && <div className="text-[11px] text-ink-2">{f.cargo}</div>}
+              <div className="flex flex-wrap gap-3 mt-1 text-[11px]">
+                {f.email && <a href={`mailto:${f.email}`} className="text-gold hover:underline">{f.email}</a>}
+                {f.tel && <span className="text-ink-2 tabular-nums">{f.tel}</span>}
+                {f.sitio && <a href={`https://${f.sitio}`} target="_blank" rel="noreferrer" className="text-gold hover:underline">{f.sitio}</a>}
+              </div>
+            </div>
+          )}
+          {f.contactos?.filter(c => c.n !== f.contacto).map((c, i) => (
+            <div key={i} className="mb-2 p-2.5 rounded-lg border border-line bg-surface-2/30">
+              <div className="text-[12px] font-medium text-ink">{c.n}{c.c && c.c !== '—' ? <span className="text-muted font-normal"> · {c.c}</span> : null}</div>
+              {c.nota && <div className="text-[11px] text-ink-2 mt-0.5 leading-snug">{c.nota}</div>}
+            </div>
+          ))}
+
+          {f.fuentes?.length > 0 && (
+            <>
+              <div className="text-[10px] uppercase tracking-wider text-muted mt-3 mb-1.5">Fuentes</div>
+              <ul className="space-y-1">
+                {f.fuentes.map((s, i) => (
+                  <li key={i}>
+                    <a href={s.u} target="_blank" rel="noreferrer" className="text-[11.5px] text-gold hover:underline">{s.t}</a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {f.notas && (
+            <>
+              <div className="text-[10px] uppercase tracking-wider text-muted mt-3 mb-1">Notas</div>
+              <div className="text-[12px] text-ink-2 whitespace-pre-wrap leading-relaxed">{f.notas}</div>
+            </>
+          )}
         </div>
       )}
 
-      <div className="hr-soft my-4" />
-      <div className="text-[11px] uppercase tracking-wider text-muted mb-2">Agendar reunión</div>
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-x-4">
-        <Field label="Día">
-          <select value={dia} onChange={e => setDia(e.target.value)}>
-            <option value="">Sin agendar</option>
-            {PANAMA_DIAS.map(d => <option key={d.id} value={d.id}>{d.dow} {d.label}</option>)}
-          </select>
-        </Field>
-        <Field label="Hora">
-          <select value={hora} onChange={e => setHora(e.target.value)} disabled={!dia}>
-            {PANAMA_HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-          </select>
-        </Field>
-        <Field label="Duración">
-          <select value={duracion} onChange={e => setDur(Number(e.target.value))} disabled={!dia}>
-            {[30,60,90,120].map(d => <option key={d} value={d}>{d} min</option>)}
-          </select>
-        </Field>
-        <Field label="Estado">
-          <select value={estado} onChange={e => setEstado(e.target.value)} disabled={!dia}>
-            <option value="propuesto">Propuesto</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="descartado">Descartado</option>
-          </select>
-        </Field>
-      </div>
-      <Field label="Nota de la reunión (opcional)">
-        <textarea rows={2} value={nota} onChange={e => setNota(e.target.value)} placeholder="Lugar, quién va, temas a tratar…" />
-      </Field>
+      {ver === 'agendar' && (
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-x-4">
+            <Field label="Día">
+              <select value={dia} onChange={e => setDia(e.target.value)}>
+                <option value="">Sin agendar</option>
+                {PANAMA_DIAS.map(d => <option key={d.id} value={d.id}>{d.dow} {d.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Hora">
+              <select value={hora} onChange={e => setHora(e.target.value)} disabled={!dia}>
+                {PANAMA_HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </Field>
+            <Field label="Duración">
+              <select value={duracion} onChange={e => setDur(Number(e.target.value))} disabled={!dia}>
+                {[30,60,90,120].map(d => <option key={d} value={d}>{d} min</option>)}
+              </select>
+            </Field>
+            <Field label="Estado">
+              <select value={estado} onChange={e => setEstado(e.target.value)} disabled={!dia}>
+                <option value="propuesto">Propuesto</option>
+                <option value="confirmado">Confirmado</option>
+                <option value="descartado">Descartado</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Nota de la reunión (opcional)">
+            <textarea rows={3} value={nota} onChange={e => setNota(e.target.value)} placeholder="Lugar, quién va, temas a tratar…" />
+          </Field>
+        </div>
+      )}
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-3 mt-2 border-t border-line">
         <div>{agenda?.dia && <Btn variant="danger" onClick={onQuitar}><Icon name="trash" size={14} />Quitar de la agenda</Btn>}</div>
         <div className="flex gap-2">
           <Btn variant="ghost" onClick={onClose}>Cerrar</Btn>

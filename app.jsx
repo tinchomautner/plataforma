@@ -216,6 +216,7 @@ const ROUTE_PERMS = {
   'max/prospects':    ['admin','maximus'],
   'max/tasks':        ['admin','maximus'],
   'max/panama':       ['admin','maximus'],
+  'max/houston':      ['admin','maximus'],
   'max/sala':         ['admin','maximus','consultora'],
 };
 const canSee = (user, routeId) => {
@@ -310,7 +311,7 @@ const initialState = () => {
   return {
     team: TEAM_SEED,
     consultora: { cards: seedConsultora() },
-    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [], reservas: [], panamaAgenda: [] },
+    maximus:    { clients: seedClients(), prospects: seedProspects(), tasks: seedTasks(), analisis: [], envios: [], reservas: [], panamaAgenda: [], houstonAgenda: [] },
   };
 };
 
@@ -360,17 +361,17 @@ function reducer(state, action) {
     case 'ANALISIS_DELETE': return { ...state, maximus: { ...state.maximus, analisis: (state.maximus.analisis||[]).filter(a => a.id !== action.id) } };
     case 'ENVIO_ADD':       return { ...state, maximus: { ...state.maximus, envios: [action.e, ...(state.maximus.envios||[])] } };
 
-    /* Agenda Panamá */
-    case 'PANAMA_UPSERT': {
-      const list = state.maximus.panamaAgenda || [];
+    /* Agenda de viaje (Panamá / Houston) — genérico por key */
+    case 'VIAJE_UPSERT': {
+      const list = state.maximus[action.key] || [];
       const exists = list.some(a => a.firmaId === action.a.firmaId);
-      const panamaAgenda = exists
+      const nueva = exists
         ? list.map(a => a.firmaId === action.a.firmaId ? { ...a, ...action.a } : a)
         : [...list, action.a];
-      return { ...state, maximus: { ...state.maximus, panamaAgenda } };
+      return { ...state, maximus: { ...state.maximus, [action.key]: nueva } };
     }
-    case 'PANAMA_DELETE':
-      return { ...state, maximus: { ...state.maximus, panamaAgenda: (state.maximus.panamaAgenda || []).filter(a => a.firmaId !== action.firmaId) } };
+    case 'VIAJE_DELETE':
+      return { ...state, maximus: { ...state.maximus, [action.key]: (state.maximus[action.key] || []).filter(a => a.firmaId !== action.firmaId) } };
 
     /* Reservas sala */
     case 'RESERVA_UPSERT': {
@@ -567,6 +568,7 @@ const NAV = [
     { id: 'max/prospects', label: 'Pipeline ventas', icon: 'pipeline' },
     { id: 'max/tasks',     label: 'Tareas equipo',   icon: 'task' },
     { id: 'max/panama',    label: 'Viaje Panamá',    icon: 'pin' },
+    { id: 'max/houston',   label: 'Viaje Houston',   icon: 'pin' },
   ]},
   { group: 'Equipo', items: [
     { id: 'max/sala',      label: 'Sala de reuniones', icon: 'calendar' },
@@ -1777,7 +1779,11 @@ const PANAMA_DIAS = [
   { id: '2026-08-18', dow: 'Martes',  label: '18 de agosto' },
   { id: '2026-08-21', dow: 'Viernes', label: '21 de agosto' },
 ];
-const PANAMA_HORAS = (() => {
+const HOUSTON_DIAS = [
+  { id: '2026-08-19', dow: 'Miércoles', label: '19 de agosto' },
+  { id: '2026-08-20', dow: 'Jueves',    label: '20 de agosto' },
+];
+const VIAJE_HORAS = (() => {
   const out = [];
   for (let m = 8 * 60; m < 20 * 60; m += 30) {
     out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
@@ -1797,9 +1803,25 @@ const GRUPO_BADGE = {
 };
 
 function MaximusPanama() {
+  return <ViajeComercial config={{
+    titulo: 'Agenda Panamá', dias: PANAMA_DIAS,
+    firmas: (typeof window !== 'undefined' && window.SEED_PANAMA) || [],
+    agendaKey: 'panamaAgenda', tabla: 'panama_agenda',
+  }} />;
+}
+function MaximusHouston() {
+  return <ViajeComercial config={{
+    titulo: 'Agenda Houston', dias: HOUSTON_DIAS,
+    firmas: (typeof window !== 'undefined' && window.SEED_HOUSTON) || [],
+    agendaKey: 'houstonAgenda', tabla: 'houston_agenda',
+  }} />;
+}
+
+function ViajeComercial({ config }) {
   const { state, dispatch, me } = useApp();
-  const firmas = (typeof window !== 'undefined' && window.SEED_PANAMA) || [];
-  const agenda = state.maximus.panamaAgenda || [];
+  const DIAS = config.dias;
+  const firmas = config.firmas || [];
+  const agenda = state.maximus[config.agendaKey] || [];
   const [tab, setTab] = useState('cliente');   // cliente | contactado | frio
   const [search, setSearch] = useState('');
   const [orden, setOrden] = useState('prio');  // prio | az
@@ -1840,7 +1862,7 @@ function MaximusPanama() {
     const ag   = agendadas.length;
     const conf = agendadas.filter(a => a.estado === 'confirmado').length;
     const usados = agendadas.reduce((s, a) => s + (a.duracion || 60), 0);
-    const libres = (PANAMA_DIAS.length * 12 * 60 - usados) / 60;
+    const libres = (DIAS.length * 12 * 60 - usados) / 60;
     return {
       tot, ag, conf,
       clientes:  firmas.filter(f => f.grupo === 'cliente').length,
@@ -1852,9 +1874,9 @@ function MaximusPanama() {
 
   const guardar = (firmaId, patch) => {
     const actual = agendaPorFirma[firmaId] || { firmaId };
-    dispatch({ type: 'PANAMA_UPSERT', a: { ...actual, ...patch, firmaId, actualizadoPor: me.id } });
+    dispatch({ type: 'VIAJE_UPSERT', key: config.agendaKey, tabla: config.tabla, a: { ...actual, ...patch, firmaId, actualizadoPor: me.id } });
   };
-  const quitar = (firmaId) => dispatch({ type: 'PANAMA_DELETE', firmaId });
+  const quitar = (firmaId) => dispatch({ type: 'VIAJE_DELETE', key: config.agendaKey, tabla: config.tabla, firmaId });
 
   // Agendar por drag & drop sobre una celda del calendario
   const dropEn = (diaId, hora) => {
@@ -1872,11 +1894,11 @@ function MaximusPanama() {
       {/* Topbar propio de la sección */}
       <div className="px-3 sm:px-6 py-3 border-b border-line flex items-center gap-3 flex-wrap bg-bg">
         <div className="flex items-baseline gap-2.5">
-          <h1 className="text-lg font-bold text-ink">Agenda Panamá</h1>
+          <h1 className="text-lg font-bold text-ink">{config.titulo}</h1>
           <span className="text-[11px] text-muted">LATAM ConsultUs · MaximUs</span>
         </div>
         <div className="flex gap-1.5">
-          {PANAMA_DIAS.map(d => (
+          {DIAS.map(d => (
             <span key={d.id} className="px-2.5 py-1 rounded-full bg-surface border border-line text-[11px] text-ink-2">
               {d.dow} {d.label.split(' ')[0]} · <b className="tabular-nums text-ink">{agendadas.filter(a => a.dia === d.id).length}</b>
             </span>
@@ -1969,7 +1991,7 @@ function MaximusPanama() {
                   </div>
                   {yaAgendadas.map(f => {
                     const a = agendaPorFirma[f.id];
-                    const d = PANAMA_DIAS.find(x => x.id === a.dia);
+                    const d = DIAS.find(x => x.id === a.dia);
                     return (
                       <div key={f.id} onClick={() => setDetalle(f)}
                         className="border border-line rounded-lg bg-bg p-2.5 cursor-pointer opacity-70 hover:opacity-100 transition"
@@ -2001,7 +2023,7 @@ function MaximusPanama() {
               {/* Cabecera de días */}
               <div className="grid sticky top-0 z-10 bg-bg border-b border-line" style={{ gridTemplateColumns: '52px repeat(3, 1fr)' }}>
                 <div />
-                {PANAMA_DIAS.map(d => (
+                {DIAS.map(d => (
                   <div key={d.id} className="px-3 py-2 border-l border-line">
                     <div className="font-semibold text-ink text-[13px]">{d.dow}</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted">{d.label}</div>
@@ -2014,7 +2036,7 @@ function MaximusPanama() {
               <div className="grid" style={{ gridTemplateColumns: '52px repeat(3, 1fr)' }}>
                 {/* Columna de horas */}
                 <div>
-                  {PANAMA_HORAS.map((h, i) => (
+                  {VIAJE_HORAS.map((h, i) => (
                     <div key={h} className="text-[10px] text-muted text-right pr-2 tabular-nums"
                       style={{ height: SLOT_H, lineHeight: `${SLOT_H}px` }}>
                       {h.endsWith(':00') ? h : ''}
@@ -2023,9 +2045,9 @@ function MaximusPanama() {
                 </div>
 
                 {/* Columnas de días */}
-                {PANAMA_DIAS.map(d => (
+                {DIAS.map(d => (
                   <div key={d.id} className="relative border-l border-line">
-                    {PANAMA_HORAS.map((h) => (
+                    {VIAJE_HORAS.map((h) => (
                       <div key={h}
                         onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('bg-gold/10'); }}
                         onDragLeave={e => e.currentTarget.classList.remove('bg-gold/10')}
@@ -2038,7 +2060,7 @@ function MaximusPanama() {
                     {agendadas.filter(a => a.dia === d.id).map(a => {
                       const f = firmas.find(x => x.id === a.firmaId);
                       if (!f) return null;
-                      const idx = PANAMA_HORAS.indexOf(a.hora);
+                      const idx = VIAJE_HORAS.indexOf(a.hora);
                       if (idx < 0) return null;
                       const alto = Math.max((a.duracion || 60) / 30 * SLOT_H, SLOT_H);
                       const conf = a.estado === 'confirmado';
@@ -2071,6 +2093,7 @@ function MaximusPanama() {
 
       {detalle && (
         <PanamaFichaModal
+          dias={DIAS}
           firma={detalle}
           agenda={agendaPorFirma[detalle.id]}
           onClose={() => setDetalle(null)}
@@ -2082,7 +2105,7 @@ function MaximusPanama() {
   );
 }
 
-function PanamaFichaModal({ firma, agenda, onClose, onSave, onQuitar }) {
+function PanamaFichaModal({ firma, agenda, dias, onClose, onSave, onQuitar }) {
   const [dia, setDia]       = useState(agenda?.dia || '');
   const [hora, setHora]     = useState(agenda?.hora || '09:00');
   const [duracion, setDur]  = useState(agenda?.duracion || 60);
@@ -2218,12 +2241,12 @@ function PanamaFichaModal({ firma, agenda, onClose, onSave, onQuitar }) {
             <Field label="Día">
               <select value={dia} onChange={e => setDia(e.target.value)}>
                 <option value="">Sin agendar</option>
-                {PANAMA_DIAS.map(d => <option key={d.id} value={d.id}>{d.dow} {d.label}</option>)}
+                {dias.map(d => <option key={d.id} value={d.id}>{d.dow} {d.label}</option>)}
               </select>
             </Field>
             <Field label="Hora">
               <select value={hora} onChange={e => setHora(e.target.value)} disabled={!dia}>
-                {PANAMA_HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                {VIAJE_HORAS.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </Field>
             <Field label="Duración">
@@ -3629,8 +3652,8 @@ function useStore() {
         case 'ANALISIS_ADD':    SUPA.upsertAnalisis(action.a); break;
         case 'ANALISIS_DELETE': SUPA.deleteAnalisis(action.id); break;
         case 'ENVIO_ADD':       SUPA.addEnvio(action.e); break;
-        case 'PANAMA_UPSERT':   SUPA.upsertPanama(action.a); break;
-        case 'PANAMA_DELETE':   SUPA.deletePanama(action.firmaId); break;
+        case 'VIAJE_UPSERT':    SUPA.upsertViaje(action.tabla, action.a); break;
+        case 'VIAJE_DELETE':    SUPA.deleteViaje(action.tabla, action.firmaId); break;
         case 'RESERVA_UPSERT':  SUPA.upsertReserva(action.r); break;
         case 'RESERVA_DELETE':  SUPA.deleteReserva(action.id); break;
       }
@@ -3683,6 +3706,7 @@ function App() {
     case 'max/prospects':    view = <MaximusProspects />;   break;
     case 'max/tasks':        view = <MaximusTasks />;       break;
     case 'max/panama':       view = <MaximusPanama />;      break;
+    case 'max/houston':      view = <MaximusHouston />;     break;
     case 'max/sala':         view = <MaximusSala />;        break;
     default:                 view = <ConsultoraKanban />;
   }

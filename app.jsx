@@ -1807,6 +1807,8 @@ function MaximusPanama() {
     titulo: 'Agenda Panamá', dias: PANAMA_DIAS,
     firmas: (typeof window !== 'undefined' && window.SEED_PANAMA) || [],
     agendaKey: 'panamaAgenda', tabla: 'panama_agenda',
+    tz: 'Hora de Panamá (GMT-5)',
+    contexto: <>Las casas de valores de Panamá administran <b>USD 14.406 M</b> (+23% interanual a octubre 2025) y el <b>89%</b> de lo que operan es mercado internacional. <span className="text-muted">Fuente: SMV.</span></>,
   }} />;
 }
 function MaximusHouston() {
@@ -1814,6 +1816,8 @@ function MaximusHouston() {
     titulo: 'Agenda Houston', dias: HOUSTON_DIAS,
     firmas: (typeof window !== 'undefined' && window.SEED_HOUSTON) || [],
     agendaKey: 'houstonAgenda', tabla: 'houston_agenda',
+    tz: 'Hora de Houston (CDT, GMT-5)',
+    contexto: <>Houston es el mayor hub de wealth management de Texas y puerta de entrada al capital latinoamericano (energía, real estate y family offices). <span className="text-muted">Foco del viaje: RIA independientes y divisiones internacionales que atienden UHNW de la región.</span></>,
   }} />;
 }
 
@@ -1913,7 +1917,7 @@ function ViajeComercial({ config }) {
           ['Agendadas', stats.ag, `${stats.conf} confirmadas · ${stats.ag - stats.conf} a confirmar`],
           ['Pendientes de agendar', stats.tot - stats.ag, 'Siguen en la lista de la izquierda'],
           ['Prioridad alta', stats.alta, `de ${stats.prospectos} prospectos`],
-          ['Horas libres', stats.libres, 'Sobre 12 h por día × 3 días'],
+          ['Horas libres', stats.libres, `Sobre 12 h por día × ${DIAS.length} días`],
         ].map(([k, v, h]) => (
           <div key={k} className="bg-bg border border-line rounded-[10px] card-shadow px-3.5 py-2.5 flex-1" style={{ minWidth: 132 }}>
             <div className="text-[10px] uppercase tracking-wider text-muted">{k}</div>
@@ -1954,9 +1958,9 @@ function ViajeComercial({ config }) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
-              {tab !== 'cliente' && (
+              {tab !== 'cliente' && config.contexto && (
                 <div className="text-[10.5px] text-ink-2 bg-surface-2/60 border border-line rounded-lg p-2.5 leading-relaxed">
-                  Las casas de valores de Panamá administran <b>USD 14.406 M</b> (+23% interanual a octubre 2025) y el <b>89%</b> de lo que operan es mercado internacional. <span className="text-muted">Fuente: SMV.</span>
+                  {config.contexto}
                 </div>
               )}
 
@@ -2014,7 +2018,7 @@ function ViajeComercial({ config }) {
           <div className="bg-bg border border-line rounded-[10px] card-shadow overflow-hidden flex flex-col">
             <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-line">
               <h2 className="text-sm font-semibold text-ink">Calendario del viaje</h2>
-              <span className="text-[11px] text-muted">Hora de Panamá (GMT-5)</span>
+              <span className="text-[11px] text-muted">{config.tz || 'Hora de Panamá (GMT-5)'}</span>
               <div className="flex-1" />
               <span className="text-[11px] text-muted">{agendadas.length} reuniones agendadas</span>
             </div>

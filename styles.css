@@ -1,0 +1,111 @@
+:root {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --bg-2: #F4F6FA;
+  --surface: #F8F9FA;
+  --surface-2: #F0F4F8;
+  --surface-3: #E8EDF4;
+  --border: #E0E0E0;
+  --border-strong: #C9CEE0;
+  --ink: #1A2240;
+  --ink-2: #4A5275;
+  --muted: #7A82A0;
+  --accent: #0066CC;
+  --accent-dark: #004C99;
+  --ok: #27AE60;
+  --warn: #FF9500;
+  --bad: #E74C3C;
+  --grid-line: rgba(15,37,64,0.06);
+}
+
+html, body, #root { height: 100%; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "cv02","cv03","cv04","cv11";
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(15,37,64,0.12); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(15,37,64,0.22); }
+
+/* Drag visuals */
+.dragging { opacity: 0.4; transform: scale(0.98); }
+.drop-target { background: rgba(0,102,204,0.06) !important; outline: 1px dashed rgba(0,102,204,0.45); }
+
+/* Hover lift */
+.card-lift { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease; }
+.card-lift:hover { transform: translateY(-1px); border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(15,37,64,0.06); }
+
+/* Line clamps */
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Calendar */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 1px; background: var(--border); }
+.cal-cell { background: var(--bg); min-height: 110px; padding: 8px; position: relative; }
+.cal-cell.dim { background: var(--surface); color: var(--muted); }
+.cal-cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Form controls */
+input, textarea, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  font: inherit;
+  font-size: 12.5px;
+  transition: border-color .15s, box-shadow .15s;
+}
+input:focus, textarea:focus, select:focus, button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,102,204,0.12);
+}
+select option { background: var(--bg); color: var(--ink); }
+
+/* Headings */
+h1,h2,h3,h4 { letter-spacing: -0.01em; font-weight: 600; color: var(--ink); }
+
+.hr-soft { height: 1px; background: var(--border); }
+
+/* Semáforo badges */
+.sem-verde    { background: rgba(39,174,96,0.10); color: #1e7e3f; border: 1px solid rgba(39,174,96,0.30); }
+.sem-amarillo { background: rgba(255,149,0,0.10); color: #b86b00; border: 1px solid rgba(255,149,0,0.30); }
+.sem-rojo     { background: rgba(231,76,60,0.10); color: #b03a2e; border: 1px solid rgba(231,76,60,0.30); }
+
+/* Cards: shadow institucional */
+.card-shadow { box-shadow: 0 1px 2px rgba(15,37,64,0.05), 0 2px 8px rgba(15,37,64,0.04); }
+
+/* tabular numbers en cualquier .num */
+.num, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Kanban estilo Jira: columnas de ancho fijo, scroll horizontal */
+.kanban-board { scrollbar-gutter: stable; }
+.kanban-col {
+  width: 288px;
+  max-height: 100%;
+}
+@media (max-width: 640px) {
+  .kanban-col { width: 84vw; max-width: 320px; }
+}
+
+/* Mobile drawer backdrop */
+.mobile-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15,37,64,0.45);
+  z-index: 40;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+
